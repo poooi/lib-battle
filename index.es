@@ -1,15 +1,13 @@
 
 const EventEmitter = require('events')
-
-const Models = require('./models')
 const PacketManager = require('./packet')
 const Simulator = require('./simulator')
 
-/***
-  emit: battle, result, reset
-*/
+
 class Battle extends EventEmitter {
   constructor() {
+    super()
+
     this.id = null
     this.battle = null
     this.simulator = null
@@ -58,3 +56,5 @@ class Battle extends EventEmitter {
     this.emit('reset')
   }
 }
+
+module.export = Battle
