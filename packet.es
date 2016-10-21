@@ -19,20 +19,10 @@ class PacketManager extends EventEmitter {
 
     this.praticeEnemy = null
 
-    window.addEventListener('game.response', this.gameResponse.bind(this))
+    window.addEventListener('game.response', this.gameResponse)
   }
 
-  dispatch(battle) {
-    if (battle == null) {
-      battle = Object.clone(this.battle)
-    }
-    let id = this.getId(battle)
-    if (id && battle) {
-      this.emit('packet', id, battle)
-    }
-  }
-
-  gameResponse(e) {
+  gameResponse = (e) => {
     const req = e.detail
     const {body, postBody} = req
     const timestamp = Date.now()
@@ -113,6 +103,7 @@ class PacketManager extends EventEmitter {
       // We assume it's 0 (normal fleet) because we can't combine fleet at peacetime.
       this.fleetType = body.api_combined_flag || 0
 
+      this.emit('reset')
       this.battle = null
       this.supportFleet = null
       this.landBaseAirCorps = null
@@ -160,6 +151,7 @@ class PacketManager extends EventEmitter {
     if (this.battle) {
       // Battle Result
       if (req.path.includes('result')) {
+        this.emit('result', Object.clone(this.battle))
         this.battle = null
         return
       }
@@ -190,7 +182,7 @@ class PacketManager extends EventEmitter {
         this.battle.packet = []
       }
       this.battle.packet.push(packet)
-      this.dispatch()
+      this.emit('battle', Object.clone(this.battle), Object.clone(packet))
       return
     }
   }
@@ -251,32 +243,6 @@ class PacketManager extends EventEmitter {
       landBaseAirCorps.push(corps)
     }
     return landBaseAirCorps
-  }
-
-
-  // Utils
-  getId(packet) {
-    if (packet == null) return
-    return packet.time || packet.poi_timestamp || null
-  }
-
-  getTime(packet) {
-    if (packet == null) return
-    let str = ''
-    if (packet.time) {
-      let date = new Date(packet.time)
-      date.setMinutes(date.getMinutes() - date.getTimezoneOffset())
-      str = date.toISOString().slice(0, 19).replace('T', ' ')
-    }
-    return str
-  }
-
-  getMap(packet) {
-    if (packet == null) return
-    let map = packet.map
-    if (map instanceof Array && map.length > 0) {
-      return `${map[0]}-${map[1]} (${map[2]})`
-    }
   }
 }
 
