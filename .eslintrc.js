@@ -6,7 +6,6 @@ module.exports = {
   },
   'extends': [
     'eslint:recommended',
-    'plugin:react/recommended',
     'plugin:import/errors',
     'plugin:import/warnings',
   ],
@@ -16,9 +15,6 @@ module.exports = {
     'import',
     'react',
   ],
-  'globals': {
-    'html2canvas': false,
-  },
   'rules': {
     'comma-dangle': ['error', 'always-multiline'],
     'indent': ['warn', 2],
@@ -37,18 +33,5 @@ module.exports = {
         'paths': [__dirname],
       },
     },
-    'import/core-modules': [
-      'electron',
-      'react',
-      'react-redux',
-      'redux-observers',
-      'reselect',
-      'react-bootstrap',
-      'react-fontawesome',
-      'path-extra',
-      'fs-extra',
-      'lodash',
-      'cson',
-    ],
   },
 }
