@@ -252,9 +252,10 @@ class Simulator2
     return fleet
 
   initEnemy: (packet) ->
+    main = escort = null
     # Main Fleet
-    main = []
     if packet.api_ship_ke?
+      main = []
       for i in [1..6]
         break unless packet.api_ship_ke[i]?
         slots = packet.api_eSlot[i - 1] || []
@@ -270,8 +271,8 @@ class Simulator2
             api_lv: packet.api_ship_lv[i]
             poi_slot: slots.map((id) => $slotitems[id])
     # Escort Fleet
-    escort = []
     if packet.api_ship_ke_combined?
+      escort = []
       for i in [1..6]
         break unless packet.api_ship_ke_combined[i]?
         slots = packet.api_eSlot_combined[i - 1] || []
