@@ -1,7 +1,6 @@
-"use strict"
 
-const EventEmitter = require('events')
-const {Battle, Fleet} = require('./models')
+import EventEmitter from 'events'
+import {Battle, BattleType, Fleet} from './models'
 
 class PacketManager extends EventEmitter {
   constructor() {
@@ -17,7 +16,7 @@ class PacketManager extends EventEmitter {
     this.landBaseAirCorps   = null  // Prepare for fleet
     this.api_base_corps     = null  // Raw api data
 
-    this.praticeEnemy = null
+    this.praticeOpponent = null
 
     window.addEventListener('game.response', this.gameResponse)
   }
@@ -60,7 +59,7 @@ class PacketManager extends EventEmitter {
     //   this.api_base_corps = Object.clone(body)
     // }
     if (req.path === '/kcsapi/api_get_member/mapinfo') {
-      this.api_base_corps = Object.clone(body.api_air_base)
+      this.api_base_corps = Object.clone(body.api_air_base || [])
     }
     if (['/kcsapi/api_req_air_corps/supply', '/kcsapi/api_req_air_corps/set_plane'].includes(req.path)) {
       let corps = this.api_base_corps[postBody.api_base_id - 1]
@@ -86,7 +85,7 @@ class PacketManager extends EventEmitter {
 
     // Pratice Enemy Information
     if (req.path === '/kcsapi/api_req_member/get_practice_enemyinfo') {
-      this.praticeEnemy = `${body.api_nickname} (Lv.${body.api_level})`
+      this.praticeOpponent = `${body.api_nickname} (Lv.${body.api_level})`
     }
 
 
@@ -107,22 +106,17 @@ class PacketManager extends EventEmitter {
       this.battle = null
       this.supportFleet = null
       this.landBaseAirCorps = null
-      this.praticeEnemy = null
+      this.praticeOpponent = null
       return
     }
 
     // Enter sortie battle
     if (['/kcsapi/api_req_map/start', '/kcsapi/api_req_map/next'].includes(req.path)) {
       let isBoss = (body.api_event_id === 5)
-      let desc
-      if (isBoss)
-        desc = ["Sortie", "(Boss)"].join(' ')
-      else
-        desc = "Sortie"
-
       this.battle = new Battle({
+        type:   isBoss ? BattleType.Boss : BattleType.Normal,
         map:    [body.api_maparea_id, body.api_mapinfo_no, body.api_no],
-        desc:   desc,
+        desc:   null,
         time:   null,  // Assign later
         fleet:  null,  // Assign later
         packet: [],
@@ -134,8 +128,9 @@ class PacketManager extends EventEmitter {
     // Enter pratice battle
     if (req.path == '/kcsapi/api_req_practice/battle') {
       this.battle = new Battle({
+        type:   BattleType.Pratice,
         map:    [],
-        desc:   `${'Pratice'} ${this.praticeEnemy}`,
+        desc:   this.praticeOpponent,
         time:   null,  // Assign later
         fleet:  null,  // Assign later
         packet: [],
@@ -149,12 +144,6 @@ class PacketManager extends EventEmitter {
 
     // Process packet in battle
     if (this.battle) {
-      // Battle Result
-      if (req.path.includes('result')) {
-        this.emit('result', Object.clone(this.battle))
-        this.battle = null
-        return
-      }
       if (req.path === '/kcsapi/api_req_map/start_air_base') {
         this.landBaseAirCorps = this.getLandBaseAirCorps()
         return
@@ -182,7 +171,14 @@ class PacketManager extends EventEmitter {
         this.battle.packet = []
       }
       this.battle.packet.push(packet)
-      this.emit('battle', Object.clone(this.battle), Object.clone(packet))
+
+      // Battle Result
+      if (req.path.includes('result')) {
+        this.emit('result', Object.clone(this.battle), packet)
+        this.battle = null
+      } else {
+        this.emit('battle', Object.clone(this.battle), packet)
+      }
       return
     }
   }
@@ -246,4 +242,4 @@ class PacketManager extends EventEmitter {
   }
 }
 
-export default new PacketManager()
+export default PacketManager

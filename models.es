@@ -1,6 +1,5 @@
-"use strict"
 
-class Stage {
+export class Stage {
   constructor(opts) {
     this.type    = opts.type      // StageType
     this.attacks = opts.attacks   // [Attack, ...]
@@ -11,7 +10,7 @@ class Stage {
   }
 }
 
-const StageType = {
+export const StageType = {
   // Primary Type
   Aerial    : "Aerial",     // Aerial Combat
   Torpedo   : "Torpedo",    // Torpedo Salvo
@@ -28,7 +27,7 @@ const StageType = {
                       // Shelling, opening anti-sub
 }
 
-class Attack {
+export class Attack {
   constructor(opts) {
     this.type     = opts.type      // AttackType
     this.fromShip = opts.fromShip  // Ship
@@ -42,7 +41,7 @@ class Attack {
   }
 }
 
-const AttackType = {
+export const AttackType = {
   Normal: "Normal",             // 通常攻撃
   Laser : "Laser",              // レーザー攻撃
   Double: "Double",             // 連撃
@@ -54,13 +53,13 @@ const AttackType = {
   Torpedo_Torpedo_CI  : "TTCI", // カットイン(魚雷/魚雷)
 }
 
-const HitType = {
+export const HitType = {
   Miss    : 0,
   Hit     : 1,
   Critical: 2,
 }
 
-class Ship {
+export class Ship {
   constructor(opts) {
     this.id    = opts.id    // int, $ships
     this.owner = opts.owner // ShipOwner
@@ -77,15 +76,16 @@ class Ship {
   }
 }
 
-const ShipOwner = {
+export const ShipOwner = {
   Ours : "Ours",
   Enemy: "Enemy",
 }
 
 
-class Battle {
+export class Battle {
   constructor(opts) {
-    this.version = "2.0"
+    this.version = "2.1"
+    this.type   = opts.type     // BattleType
     this.map    = opts.map      // [int, int, int] : 2-3-1
     this.desc   = opts.desc     // Description
     this.time   = opts.time     // Seconds since epoch time. Must be same as the first packet.
@@ -94,7 +94,13 @@ class Battle {
   }
 }
 
-class Fleet {
+export const BattleType = {
+  Normal:  "Normal",
+  Boss:    "Boss",
+  Pratice: "Pratice",
+}
+
+export class Fleet {
   constructor(opts) {
     this.type     = opts.type      // api_port/port.api_combined_flag
     this.main     = opts.main      // api_get_member/deck[].api_ship (Extended)
@@ -103,5 +109,3 @@ class Fleet {
     this.LBAC     = opts.LBAC      // api_get_member/base_air_corps (Extended)
   }
 }
-
-module.exports = {Stage, StageType, Attack, AttackType, HitType, Ship, ShipOwner, Battle, Fleet}
