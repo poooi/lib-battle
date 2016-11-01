@@ -223,8 +223,7 @@ getEngagementStage = (packet) ->
     api: picks
 
 class Simulator2
-  constructor: (fleet) ->
-    # >> package-manager.es L103
+  constructor: (fleet, opts) ->
     @fleetType    = fleet.type || 0
     @mainFleet    = @initFleet(fleet.main, 0)
     @escortFleet  = @initFleet(fleet.escort, 6)
@@ -232,6 +231,8 @@ class Simulator2
     @enemyFleet   = null  # Assign at first packet
     @enemyEscort  = null  # ^
     @landBaseAirCorps = fleet.LBAC
+
+    @enemyRaw = opts.enemyRaw
 
   initFleet: (rawFleet, intl=0) ->
     return unless rawFleet?
@@ -252,41 +253,32 @@ class Simulator2
     return fleet
 
   initEnemy: (packet) ->
-    main = escort = null
-    # Main Fleet
-    if packet.api_ship_ke?
-      main = []
+    _initFleet = (intl, api_ship_ke, api_eSlot, api_maxhps, api_nowhps, api_ship_lv) =>
+      return null unless api_ship_ke?
+      fleet = []
       for i in [1..6]
-        break unless packet.api_ship_ke[i]?
-        slots = packet.api_eSlot[i - 1] || []
-        main.push new Ship
-          id:    packet.api_ship_ke[i]
-          owner: ShipOwner.Enemy
-          pos:   i  # [1..6]
-          maxHP: packet.api_maxhps[i + 6]
-          nowHP: packet.api_nowhps[i + 6]
-          items: []  # We dont care
-          raw:
-            api_ship_id: packet.api_ship_ke[i]
-            api_lv: packet.api_ship_lv[i]
-            poi_slot: slots.map((id) => $slotitems[id])
-    # Escort Fleet
-    if packet.api_ship_ke_combined?
-      escort = []
-      for i in [1..6]
-        break unless packet.api_ship_ke_combined[i]?
-        slots = packet.api_eSlot_combined[i - 1] || []
-        escort.push new Ship
-          id:    packet.api_ship_ke_combined[i]
-          owner: ShipOwner.Enemy
-          pos:   i + 6  # [7..12]
-          maxHP: packet.api_maxhps_combined[i + 6]
-          nowHP: packet.api_nowhps_combined[i + 6]
-          items: []  # We dont care
-          raw:
-            api_ship_id: packet.api_ship_ke_combined[i]
-            api_lv: packet.api_ship_lv_combined[i]
-            poi_slot: slots.map((id) => $slotitems[id])
+        id = api_ship_ke[i]
+        slots = api_eSlot[i - 1] || []
+        ship = raw = null
+        if id? and id > 0
+          if @enemyRaw
+            raw =
+              api_ship_id: id
+              api_lv: api_ship_lv[i]
+              poi_slot: slots.map((id) => $slotitems[id])
+          ship = new Ship
+            id:    id
+            owner: ShipOwner.Enemy
+            pos:   intl + i
+            maxHP: api_maxhps[i + 6]
+            nowHP: api_nowhps[i + 6]
+            items: []  # We dont care
+            raw: raw
+        fleet.push ship
+      return fleet
+
+    main = _initFleet(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv)
+    escort = _initFleet(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined)
     return [main, escort]
 
   simulate: (packet) ->
