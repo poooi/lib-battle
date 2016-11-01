@@ -243,7 +243,7 @@ class Simulator2
         fleet.push new Ship
           id:    rawShip.api_ship_id
           owner: ShipOwner.Ours
-          pos:   i + 1
+          pos:   intl + i + 1
           maxHP: rawShip.api_maxhp
           nowHP: rawShip.api_nowhp
           items: slots.map (slot) -> slot?.api_slotitem_id
