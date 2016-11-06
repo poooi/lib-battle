@@ -55,9 +55,6 @@ class PacketManager extends EventEmitter {
     }
 
     // Land Base Air Corps
-    // if (req.path === '/kcsapi/api_get_member/base_air_corps') {
-    //   this.api_base_corps = Object.clone(body)
-    // }
     if (req.path === '/kcsapi/api_get_member/mapinfo') {
       this.api_base_corps = Object.clone(body.api_air_base || [])
     }
