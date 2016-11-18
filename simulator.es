@@ -456,17 +456,16 @@ class Simulator2 {
         stages.push(getEngagementStage(packet))
       }
 
-      if (fleetType === 0) {
-        if (enemyType === 0) {
+      // Night Combat
+      if (fleetType === 0 && enemyType === 0) {
+        stages.push(simulateNight(mainFleet, enemyFleet, packet.api_hougeki, packet))
+      } else
+      if (fleetType === 0 && enemyType === 1) {
+        if (packet.api_active_deck[1] === 1) {
           stages.push(simulateNight(mainFleet, enemyFleet, packet.api_hougeki, packet))
         }
-        if (enemyType === 1) {
-          if (packet.api_active_deck[1] === 1) {
-            stages.push(simulateNight(mainFleet, enemyFleet, packet.api_hougeki, packet))
-          }
-          if (packet.api_active_deck[1] === 2) {
-            stages.push(simulateNight(mainFleet, enemyEscort, packet.api_hougeki, packet))
-          }
+        if (packet.api_active_deck[1] === 2) {
+          stages.push(simulateNight(mainFleet, enemyEscort, packet.api_hougeki, packet))
         }
       } else {
         stages.push(simulateNight(escortFleet, enemyFleet, packet.api_hougeki, packet))
