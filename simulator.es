@@ -105,24 +105,24 @@ function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku) 
 }
 
 // TODO: torpedo from main & escort fleet
-function simulateTorpedoAttack(fleet, targetFleet, targetEscort, api_eydam, api_erai, api_ecl) {
-  if (!(targetFleet != null && api_eydam != null)) {
+function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, api_eydam, api_erai, api_ecl) {
+  if (!(enemyFleet != null && api_eydam != null)) {
     return []
   }
   const list = []
-  for (let [i, target] of api_erai.entries()) {
-    if (target <= 0) continue
-    let toShip
-    if (1 <= target && target <= 6)
-      toShip = targetFleet[target - 1]
-    if (7 <= target && target <= 12)
-      toShip = targetEscort[target - 7]
+  for (let [i, t] of api_erai.entries()) {
+    let fromShip, toShip
+    if (i <= 0 || t <= 0) continue
+    if (i <= 6) fromShip = mainFleet[i - 1]
+    else        fromShip = escortFleet[i - 7]
+    if (t <= 6) toShip = enemyFleet[t - 1]
+    else        toShip = enemyEscort[t - 7]
     let damage = Math.floor(api_eydam[i])
     let hit = (api_ecl[i] === 2 ? HitType.Critical : (api_ecl[i] === 1 ? HitType.Hit : HitType.Miss))
     let {fromHP, toHP, item} = damageShip(toShip, damage)
     list.push(new Attack({
       type    : AttackType.Normal,
-      fromShip: fleet[i - 1],
+      fromShip: fromShip,
       toShip  : toShip,
       damage  : [damage],
       hit     : [hit],
@@ -134,15 +134,17 @@ function simulateTorpedoAttack(fleet, targetFleet, targetEscort, api_eydam, api_
   return list
 }
 
-function simulateTorpedo(fleet, enemyFleet, enemyEscort, raigeki, subtype) {
+function simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigeki, subtype) {
   if (!(raigeki != null)) {
     return
   }
   let attacks = []
   if (raigeki.api_frai != null)
-    attacks = attacks.concat(simulateTorpedoAttack(fleet, enemyFleet, enemyEscort, raigeki.api_fydam, raigeki.api_frai, raigeki.api_fcl))
+    attacks = attacks.concat(simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort,
+      raigeki.api_fydam, raigeki.api_frai, raigeki.api_fcl))
   if (raigeki.api_erai != null)
-    attacks = attacks.concat(simulateTorpedoAttack(enemyFleet, fleet, null, raigeki.api_eydam, raigeki.api_erai, raigeki.api_ecl))
+    attacks = attacks.concat(simulateTorpedoAttack(enemyFleet, enemyEscort, mainFleet, escortFleet,
+      raigeki.api_eydam, raigeki.api_erai, raigeki.api_ecl))
   return new Stage({
     type: StageType.Torpedo,
     attacks: attacks,
@@ -150,7 +152,7 @@ function simulateTorpedo(fleet, enemyFleet, enemyEscort, raigeki, subtype) {
   })
 }
 
-function simulateShelling(fleet, enemyFleet, enemyEscort, hougeki, subtype) {
+function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, hougeki, subtype) {
   if (!(hougeki != null)) {
     return
   }
@@ -171,9 +173,9 @@ function simulateShelling(fleet, enemyFleet, enemyEscort, hougeki, subtype) {
     let fromShip, toShip
     if (fromEnemy) {
       fromShip = at < 6 ? enemyFleet[at] : enemyEscort[at - 6]
-      toShip   = fleet[df]
+      toShip   = df < 6 ? mainFleet[df]  : escortFleet[df - 6]
     } else {
-      fromShip = fleet[at]
+      fromShip = at < 6 ? mainFleet[at]  : escortFleet[at - 6]
       toShip   = df < 6 ? enemyFleet[df] : enemyEscort[df - 6]
     }
 
@@ -208,8 +210,24 @@ function simulateShelling(fleet, enemyFleet, enemyEscort, hougeki, subtype) {
   })
 }
 
-function simulateNight(fleet, enemyFleet, hougeki, packet) {
-  let stage = simulateShelling(fleet, enemyFleet, null, hougeki, StageType.Night)
+function simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, hougeki, packet) {
+  let _oursFleet  = fleetType === 0 ? mainFleet  : escortFleet
+  let _enemyFleet = enemyType === 0 ? enemyFleet : enemyEscort
+  if (packet.api_active_deck != null) {
+    if (packet.api_active_deck[0] === 1) {
+      _oursFleet = mainFleet
+    }
+    if (packet.api_active_deck[0] === 2) {
+      _oursFleet = escortFleet
+    }
+    if (packet.api_active_deck[1] === 1) {
+      _enemyFleet = enemyFleet
+    }
+    if (packet.api_active_deck[1] === 2) {
+      _enemyFleet = enemyEscort
+    }
+  }
+  let stage = simulateShelling(_oursFleet, null, _enemyFleet, null, hougeki, StageType.Night)
   stage.api = _.pick(packet, 'api_touch_plane', 'api_flare_pos')
   return stage
 }
@@ -350,7 +368,7 @@ class Simulator2 {
       this.enemyEscort = this.initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined)
     }
     // HACK: Only enemy carrier task force now.
-    const enemyType = (path.includes('ec_') ? 1 : 0)
+    const enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
 
     const {fleetType, mainFleet, escortFleet, enemyFleet, enemyEscort} = this
     let stages = []
@@ -364,6 +382,7 @@ class Simulator2 {
          '/kcsapi/api_req_combined_battle/airbattle',
          '/kcsapi/api_req_combined_battle/ld_airbattle',
          '/kcsapi/api_req_combined_battle/ec_battle',
+         '/kcsapi/api_req_combined_battle/each_battle',
        ].includes(path)) {
 
       // Engagement
@@ -382,63 +401,119 @@ class Simulator2 {
       if (fleetType === 0) {
         if (enemyType === 0) {
           // Opening Anti-Sub
-          stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_opening_taisen, StageType.Opening))
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, null, packet.api_opening_taisen,
+            StageType.Opening))
           // Opening Torpedo Salvo
-          stages.push(simulateTorpedo(mainFleet, enemyFleet, enemyEscort, packet.api_opening_atack, StageType.Opening))
+          stages.push(simulateTorpedo(mainFleet, null, enemyFleet, null, packet.api_opening_atack,
+            StageType.Opening))
           // Shelling (Main), 1st
-          stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_hougeki1, null))
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, null, packet.api_hougeki1))
           // Shelling (Main), 2nd
-          stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_hougeki2, null))
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, null, packet.api_hougeki2))
           // Closing Torpedo Salvo
-          stages.push(simulateTorpedo(mainFleet, enemyFleet, enemyEscort, packet.api_raigeki))
+          stages.push(simulateTorpedo(mainFleet, null, enemyFleet, null, packet.api_raigeki))
         }
         if (enemyType === 1) {
           // Opening Anti-Sub
-          stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_opening_taisen, StageType.Opening))
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, enemyEscort, packet.api_opening_taisen,
+            StageType.Opening))
           // Opening Torpedo Salvo
-          stages.push(simulateTorpedo(mainFleet, enemyFleet, enemyEscort, packet.api_opening_atack, StageType.Opening))
+          stages.push(simulateTorpedo(mainFleet, null, enemyFleet, enemyEscort, packet.api_opening_atack,
+            StageType.Opening))
           // Shelling (Escort)
-          stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_hougeki1, null))
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, enemyEscort, packet.api_hougeki1))
           // Closing Torpedo Salvo
-          stages.push(simulateTorpedo(mainFleet, enemyFleet, enemyEscort, packet.api_raigeki))
+          stages.push(simulateTorpedo(mainFleet, null, enemyFleet, enemyEscort, packet.api_raigeki))
           // Shelling (Any), 1st
-          stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_hougeki2, null))
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, enemyEscort, packet.api_hougeki2))
           // Shelling (Any), 2nd
-          stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_hougeki3, null))
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, enemyEscort, packet.api_hougeki3))
         }
       }
 
       // Surface Task Force, 水上打撃部隊
       if (fleetType === 2) {
-        // Opening Anti-Sub
-        stages.push(simulateShelling(escortFleet, enemyFleet, enemyEscort, packet.api_opening_taisen, StageType.Opening))
-        // Opening Torpedo Salvo
-        stages.push(simulateTorpedo(escortFleet, enemyFleet, enemyEscort, packet.api_opening_atack, StageType.Opening))
-        // Shelling (Main), 1st
-        stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_hougeki1, StageType.Main))
-        // Shelling (Main), 2nd
-        stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_hougeki2, StageType.Main))
-        // Shelling (Escort)
-        stages.push(simulateShelling(escortFleet, enemyFleet, enemyEscort, packet.api_hougeki3, StageType.Escort))
-        // Closing Torpedo Salvo
-        stages.push(simulateTorpedo(escortFleet, enemyFleet, enemyEscort, packet.api_raigeki))
+        if (enemyType === 0) {
+          // Opening Anti-Sub
+          stages.push(simulateShelling(escortFleet, null, enemyFleet, null, packet.api_opening_taisen,
+            StageType.Opening))
+          // Opening Torpedo Salvo
+          stages.push(simulateTorpedo(escortFleet, null, enemyFleet, null, packet.api_opening_atack,
+            StageType.Opening))
+          // Shelling (Main), 1st
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, null, packet.api_hougeki1,
+            StageType.Main))
+          // Shelling (Main), 2nd
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, null, packet.api_hougeki2,
+            StageType.Main))
+          // Shelling (Escort)
+          stages.push(simulateShelling(escortFleet, null, enemyFleet, null, packet.api_hougeki3,
+            StageType.Escort))
+          // Closing Torpedo Salvo
+          stages.push(simulateTorpedo(escortFleet, null, enemyFleet, null, packet.api_raigeki))
+        }
+        if (enemyType === 1) {
+          // Opening Anti-Sub
+          stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_opening_taisen,
+            StageType.Opening))
+          // Opening Torpedo Salvo
+          stages.push(simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_opening_atack,
+            StageType.Opening))
+          // Shelling (Main), 1st
+          stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki1,
+            StageType.Main))
+          // Shelling (Main), 2nd
+          stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki2,
+            StageType.Main))
+          // Shelling (Escort)
+          stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki3,
+            StageType.Escort))
+          // Closing Torpedo Salvo
+          stages.push(simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_raigeki))
+        }
       }
 
       // Carrier Task Force, 空母機動部隊
       // Transport Escort, 輸送護衛部隊
       if (fleetType === 1 || fleetType === 3) {
-        // Opening Anti-Sub
-        stages.push(simulateShelling(escortFleet, enemyFleet, enemyEscort, packet.api_opening_taisen, StageType.Opening))
-        // Opening Torpedo Salvo
-        stages.push(simulateTorpedo(escortFleet, enemyFleet, enemyEscort, packet.api_opening_atack, StageType.Opening))
-        // Shelling (Escort)
-        stages.push(simulateShelling(escortFleet, enemyFleet, enemyEscort, packet.api_hougeki1, StageType.Escort))
-        // Closing Torpedo Salvo
-        stages.push(simulateTorpedo(escortFleet, enemyFleet, enemyEscort, packet.api_raigeki))
-        // Shelling (Main), 1st
-        stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_hougeki2, StageType.Main))
-        // Shelling (Main), 2nd
-        stages.push(simulateShelling(mainFleet, enemyFleet, enemyEscort, packet.api_hougeki3, StageType.Main))
+        if (enemyType === 0) {
+          // Opening Anti-Sub
+          stages.push(simulateShelling(escortFleet, null, enemyFleet, null, packet.api_opening_taisen,
+            StageType.Opening))
+          // Opening Torpedo Salvo
+          stages.push(simulateTorpedo(escortFleet, null, enemyFleet, null, packet.api_opening_atack,
+            StageType.Opening))
+          // Shelling (Escort)
+          stages.push(simulateShelling(escortFleet, null, enemyFleet, null, packet.api_hougeki1,
+            StageType.Escort))
+          // Closing Torpedo Salvo
+          stages.push(simulateTorpedo(escortFleet, null, enemyFleet, null, packet.api_raigeki))
+          // Shelling (Main), 1st
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, null, packet.api_hougeki2,
+            StageType.Main))
+          // Shelling (Main), 2nd
+          stages.push(simulateShelling(mainFleet, null, enemyFleet, null, packet.api_hougeki3,
+            StageType.Main))
+        }
+        if (enemyType === 1) {
+          // Opening Anti-Sub
+          stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_opening_taisen,
+            StageType.Opening))
+          // Opening Torpedo Salvo
+          stages.push(simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_opening_atack,
+            StageType.Opening))
+          // Shelling (Main), 1st
+          stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki1,
+            StageType.Main))
+          // Shelling (Escort)
+          stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki2,
+            StageType.Escort))
+          // Closing Torpedo Salvo
+          stages.push(simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_raigeki))
+          // Shelling (Main), 2nd
+          stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki3,
+            StageType.Main))
+        }
       }
     }
 
@@ -457,23 +532,7 @@ class Simulator2 {
       }
 
       // Night Combat
-      let _oursFleet  = fleetType === 0 ? mainFleet  : escortFleet
-      let _enemyFleet = enemyType === 0 ? enemyFleet : enemyEscort
-      if (packet.api_active_deck != null) {
-        if (packet.api_active_deck[0] === 1) {
-          _oursFleet = mainFleet
-        }
-        if (packet.api_active_deck[0] === 2) {
-          _oursFleet = escortFleet
-        }
-        if (packet.api_active_deck[1] === 1) {
-          _enemyFleet = enemyFleet
-        }
-        if (packet.api_active_deck[1] === 2) {
-          _enemyFleet = enemyEscort
-        }
-      }
-      stages.push(simulateNight(_oursFleet, _enemyFleet, packet.api_hougeki, packet))
+      stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
     }
 
     return stages
