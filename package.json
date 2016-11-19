@@ -14,6 +14,9 @@
     "eslint-plugin-import": "^1.8.1",
     "eslint-plugin-react": "^5.1.1"
   },
+  "scripts": {
+    "postpublish": "cnpm sync poi-lib-battle"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/poooi/lib-battle.git"
