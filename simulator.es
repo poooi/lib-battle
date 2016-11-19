@@ -457,19 +457,23 @@ class Simulator2 {
       }
 
       // Night Combat
-      if (fleetType === 0 && enemyType === 0) {
-        stages.push(simulateNight(mainFleet, enemyFleet, packet.api_hougeki, packet))
-      } else
-      if (fleetType === 0 && enemyType === 1) {
+      let _oursFleet  = fleetType === 0 ? mainFleet  : escortFleet
+      let _enemyFleet = enemyType === 0 ? enemyFleet : enemyEscort
+      if (packet.api_active_deck != null) {
+        if (packet.api_active_deck[0] === 1) {
+          _oursFleet = mainFleet
+        }
+        if (packet.api_active_deck[0] === 2) {
+          _oursFleet = escortFleet
+        }
         if (packet.api_active_deck[1] === 1) {
-          stages.push(simulateNight(mainFleet, enemyFleet, packet.api_hougeki, packet))
+          _enemyFleet = enemyFleet
         }
         if (packet.api_active_deck[1] === 2) {
-          stages.push(simulateNight(mainFleet, enemyEscort, packet.api_hougeki, packet))
+          _enemyFleet = enemyEscort
         }
-      } else {
-        stages.push(simulateNight(escortFleet, enemyFleet, packet.api_hougeki, packet))
       }
+      stages.push(simulateNight(_oursFleet, _enemyFleet, packet.api_hougeki, packet))
     }
 
     return stages
