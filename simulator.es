@@ -57,8 +57,8 @@ function damageShip(ship, damage) {
   return {fromHP, toHP, item}
 }
 
-function simulateAerialAttack(ships, edam, ebak_flag, erai_flag, ecl_flag) {
-  if (!(ships != null && edam != null)) {
+function simulateAerialAttack(fleet, edam, ebak_flag, erai_flag, ecl_flag) {
+  if (!(fleet != null && edam != null)) {
     return []
   }
   const list = []
@@ -66,7 +66,7 @@ function simulateAerialAttack(ships, edam, ebak_flag, erai_flag, ecl_flag) {
     if ((damage < 0) || (ebak_flag[i] <= 0 && erai_flag[i] <= 0))
       continue
     damage = Math.floor(damage)
-    let toShip = ships[i - 1]
+    let toShip = fleet[i - 1]
     let hit = (ecl_flag[i] === 1 ? HitType.Critical : (damage > 0 ? HitType.Hit : HitType.Miss))
     let {fromHP, toHP, item} = damageShip(toShip, damage)
     list.push(new Attack({
@@ -232,33 +232,35 @@ function simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet,
   return stage
 }
 
-function simulateSupport(enemyShip, support, flag) {
+function simulateSupport(enemyFleet, enemyEscort, support, flag) {
   if (!(support != null && flag != null)) {
     return
   }
   if (flag === 1) {
-    const kouku = support.api_support_airatack
-    let attacks = []
-    if (kouku.api_stage3 != null) {
-      let st3 = kouku.api_stage3
-      attacks = attacks.concat(simulateAerialAttack(enemyShip, st3.api_edam, st3.api_ebak_flag, st3.api_erai_flag, st3.api_ecl_flag))
-    }
+    let stage = simulateAerial(null, null, enemyFleet, enemyEscort, support.api_support_airatack)
     return new Stage({
+      ...stage,
       type: StageType.Support,
       subtype: SupportTypeMap[flag],
-      attacks: attacks,
-      kouku: kouku,
     })
   }
   if (flag === 2 || flag === 3) {
     const hourai = support.api_support_hourai
     let attacks = []
     for (let [i, damage] of hourai.api_damage.entries()) {
-      if (!(1 <= i && i <= 6)) continue
+      let toShip
+      if (1 <= i && i <= 6)
+        toShip = enemyFleet[i - 1]
+      if (7 <= i && i <= 12)
+        toShip = enemyEscort[i - 7]
+      if (toShip == null)
+        continue
       damage = Math.floor(damage)
-      const cl = hourai.api_cl_list[i]
+      let cl = hourai.api_cl_list[i]
       let hit = (cl === 2 ? HitType.Critical : (cl === 1 ? HitType.Hit : HitType.Miss))
-      let toShip = enemyShip[i - 1]
+      // No showing Miss attack on support stage.
+      if (hit === HitType.Miss)
+        continue
       let {fromHP, toHP, item} = damageShip(toShip, damage)
       attacks.push(new Attack({
         type   : AttackType.Normal,
@@ -395,7 +397,7 @@ class Simulator2 {
       // Aerial Combat 2nd
       stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_kouku2))
       // Expedition Support Fire
-      stages.push(simulateSupport(enemyFleet, packet.api_support_info, packet.api_support_flag))
+      stages.push(simulateSupport(enemyFleet, enemyEscort, packet.api_support_info, packet.api_support_flag))
 
       // Normal Fleet
       if (fleetType === 0) {
