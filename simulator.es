@@ -1,6 +1,6 @@
 
 import _ from 'lodash'
-import {Stage, StageType, Attack, AttackType, HitType, Ship, ShipOwner} from './models'
+import {Stage, StageType, Attack, AttackType, HitType, Ship, ShipOwner, Result} from './models'
 
 // 特殊砲撃: 0=通常, 1=レーザー攻撃, 2=連撃, 3=カットイン(主砲/副砲), 4=カットイン(主砲/電探), 5=カットイン(主砲/徹甲), 6=カットイン(主砲/主砲)
 const DayAttackTypeMap = {
@@ -28,6 +28,10 @@ const SupportTypeMap = {
   2: StageType.Shelling,
   3: StageType.Torpedo,
 }
+
+const HalfSinkNumber = [
+  0, 1, 1, 2, 2, 3, 4,
+]
 
 function useItem(ship) {
   if (ship.owner === ShipOwner.Ours && ship.nowHP <= 0 && ship.items != null)
@@ -301,13 +305,17 @@ class Simulator2 {
     this.mainFleet    = this.initFleet(fleet.main, 0)
     this.escortFleet  = this.initFleet(fleet.escort, 6)
     this.supportFleet = this.initFleet(fleet.support)
+    this.landBaseAirCorps = fleet.LBAC
     this.enemyFleet   = null  // Assign at first packet
     this.enemyEscort  = null  // ^
-    this.landBaseAirCorps = fleet.LBAC
 
     // When no using poi API:
     //   enemyShip.raw == null
     this.usePoiAPI = opts.usePoiAPI
+
+    // Stage
+    this.stages  = []
+    this._result = null
   }
 
   initFleet(rawFleet, intl=0) {
@@ -373,10 +381,10 @@ class Simulator2 {
     const enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
 
     const {fleetType, mainFleet, escortFleet, enemyFleet, enemyEscort} = this
-    let stages = []
+    const {stages} = this
 
-    if (['/kcsapi/api_req_sortie/battle',
-         '/kcsapi/api_req_practice/battle',
+    if (['/kcsapi/api_req_practice/battle',
+         '/kcsapi/api_req_sortie/battle',
          '/kcsapi/api_req_sortie/airbattle',
          '/kcsapi/api_req_sortie/ld_airbattle',
          '/kcsapi/api_req_combined_battle/battle',
@@ -385,7 +393,7 @@ class Simulator2 {
          '/kcsapi/api_req_combined_battle/ld_airbattle',
          '/kcsapi/api_req_combined_battle/ec_battle',
          '/kcsapi/api_req_combined_battle/each_battle',
-       ].includes(path)) {
+        ].includes(path)) {
 
       // Engagement
       stages.push(getEngagementStage(packet))
@@ -519,13 +527,13 @@ class Simulator2 {
       }
     }
 
-    if (['/kcsapi/api_req_battle_midnight/battle',
-         '/kcsapi/api_req_practice/midnight_battle',
+    if (['/kcsapi/api_req_practice/midnight_battle',
+         '/kcsapi/api_req_battle_midnight/battle',
          '/kcsapi/api_req_battle_midnight/sp_midnight',
          '/kcsapi/api_req_combined_battle/midnight_battle',
          '/kcsapi/api_req_combined_battle/sp_midnight',
          '/kcsapi/api_req_combined_battle/ec_midnight_battle',
-       ].includes(path)) {
+        ].includes(path)) {
 
       // TODO: We need better solution
       // HACK: Add Engagement Stage to sp_midnight battle.
@@ -537,7 +545,25 @@ class Simulator2 {
       stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
     }
 
+    if (['/kcsapi/api_req_practice/battle_result',
+         '/kcsapi/api_req_sortie/battleresult',
+         '/kcsapi/api_req_combined_battle/battleresult',
+        ].includes(path)) {
+      this._result = new Result({
+        rank: packet.api_win_rank,
+        mvp: [(packet.api_mvp || 0) - 1, (packet.api_mvp_combined || 0) - 1],
+        getShip: (packet.api_get_ship || {}).api_ship_id,
+        getItem: (packet.api_get_useitem || {}).api_useitem_id,
+      })
+    }
+
+    // Compatibility: return stages
     return stages
+  }
+
+  get result() {
+    if (this._result != null)
+      return this._result
   }
 }
 
