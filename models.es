@@ -4,7 +4,6 @@ export class Stage {
     this.type    = opts.type      // StageType
     this.subtype = opts.subtype
     this.attacks = opts.attacks   // [Attack, ...]
-
     this.kouku   = opts.kouku     // Raw API data `api_kouku`
     this.api     = opts.api       // Engagement: Picked raw data
   }
@@ -67,9 +66,10 @@ export class Ship {
 
     this.maxHP   = opts.maxHP
     this.nowHP   = opts.nowHP
-    this.items   = opts.items
     this.initHP  = opts.nowHP
     this.lostHP  = opts.lostHP || 0
+    this.damage  = opts.damage || 0  // Damage from this to others
+    this.items   = opts.items
     this.useItem = opts.useItem || null
 
     this.raw = opts.raw
@@ -84,7 +84,7 @@ export const ShipOwner = {
 export class Result {
   constructor(opts) {
     this.rank    = opts.rank  // 'A', 'B'...
-    this.mvp     = [-1, -1]   // [0..5], MVP position of mainFleet & escortFleet.
+    this.mvp     = opts.mvp   // [0..5, 0..5], MVP index of mainFleet & escortFleet.
     this.getShip = opts.getShip  // id of store.const.$
     this.getItem = opts.getItem  // ^^
   }

@@ -29,7 +29,7 @@ const SupportTypeMap = {
   3: StageType.Torpedo,
 }
 
-const HalfSinkNumber = [
+const HalfSunkNumber = [
   0, 1, 1, 2, 2, 3, 4,
 ]
 
@@ -50,14 +50,17 @@ function useItem(ship) {
   return null
 }
 
-function damageShip(ship, damage) {
-  let fromHP = ship.nowHP
-  ship.nowHP  -= damage
-  ship.lostHP += damage
-  let item   = useItem(ship)
-  ship.useItem = item
-  let toHP   = ship.nowHP
-  // `ship.*` is updated in place
+function damageShip(fromShip, toShip, damage) {
+  if (fromShip != null) {
+    fromShip.damage += damage
+  }
+  let fromHP = toShip.nowHP
+  toShip.nowHP  -= damage
+  toShip.lostHP += damage
+  let item   = useItem(toShip)
+  toShip.useItem = item
+  let toHP   = toShip.nowHP
+  // `toShip.*` is updated in place
   return {fromHP, toHP, item}
 }
 
@@ -72,7 +75,7 @@ function simulateAerialAttack(fleet, edam, ebak_flag, erai_flag, ecl_flag) {
     damage = Math.floor(damage)
     let toShip = fleet[i - 1]
     let hit = (ecl_flag[i] === 1 ? HitType.Critical : (damage > 0 ? HitType.Hit : HitType.Miss))
-    let {fromHP, toHP, item} = damageShip(toShip, damage)
+    let {fromHP, toHP, item} = damageShip(null, toShip, damage)
     list.push(new Attack({
       type    : AttackType.Normal,
       toShip  : toShip,
@@ -123,7 +126,7 @@ function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, 
     else        toShip = enemyEscort[t - 7]
     let damage = Math.floor(api_eydam[i])
     let hit = (api_ecl[i] === 2 ? HitType.Critical : (api_ecl[i] === 1 ? HitType.Hit : HitType.Miss))
-    let {fromHP, toHP, item} = damageShip(toShip, damage)
+    let {fromHP, toHP, item} = damageShip(fromShip, toShip, damage)
     list.push(new Attack({
       type    : AttackType.Normal,
       fromShip: fromShip,
@@ -195,7 +198,7 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
     let hit = []
     for (const cl of hougeki.api_cl_list[i])
       hit.push(cl === 2 ? HitType.Critical : (cl === 1 ? HitType.Hit : HitType.Miss))
-    let {fromHP, toHP, item} = damageShip(toShip, damageTotal)
+    let {fromHP, toHP, item} = damageShip(fromShip, toShip, damageTotal)
     list.push(new Attack({
       type    : attackType,
       fromShip: fromShip,
@@ -265,7 +268,7 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
       // No showing Miss attack on support stage.
       if (hit === HitType.Miss)
         continue
-      let {fromHP, toHP, item} = damageShip(toShip, damage)
+      let {fromHP, toHP, item} = damageShip(null, toShip, damage)
       attacks.push(new Attack({
         type   : AttackType.Normal,
         toShip : toShip,
@@ -288,6 +291,77 @@ function simulateLandBase(enemyFleet, enemyEscort, kouku) {
   let stage = simulateAerial(null, null, enemyFleet, enemyEscort, kouku)
   stage.type = StageType.LandBase
   return stage
+}
+
+function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
+  // https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E6%88%A6%E9%97%98%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
+  function calStatus(fleet) {
+    let shipNum = 0, sunkNum = 0, totalHP = 0, lostHP = 0
+    let flagshipSunk = false, flagshipCritical  = false
+    for (const ship of fleet) {
+      if (ship == null) continue
+      let {initHP, nowHP, maxHP} = ship
+      if (nowHP < 0) nowHP = 0
+      shipNum += 1
+      sunkNum += (nowHP <= 0) ? 1 : 0
+      totalHP += initHP
+      lostHP  += (initHP - nowHP)
+      if (ship.pos === 1) {
+        flagshipSunk     = (nowHP <= 0)
+        flagshipCritical = (nowHP * 4 <= maxHP)
+      }
+    }
+    return {
+      num: shipNum,
+      sunk: sunkNum,
+      rate: Math.floor(lostHP / totalHP),
+      flagshipSunk, flagshipCritical,
+    }
+  }
+  const ours  = calStatus([].concat(mainFleet,  escortFleet))
+  const enemy = calStatus([].concat(enemyFleet, enemyEscort))
+
+  if (ours.sunk === 0) {
+    if (enemy.sunk === enemy.num) {
+      if (ours.rate <= 0)
+        return 'SS'
+      else
+        return 'S'
+    }
+    if (enemy.num > 1 && enemy.sunk >= HalfSunkNumber[enemy.num]) {
+      return 'A'
+    }
+  }
+  if (enemy.flagshipSunk && ours.sunk < enemy.sunk) {
+    return 'B'
+  }
+  if (ours.num === 1 && ours.flagshipCritical) {
+    return 'D'
+  }
+  if (2 * enemy.rate > 5 * ours.rate) {
+    return 'B'
+  }
+  if (9 * enemy.rate > 10 * ours.rate) {
+    return 'C'
+  }
+  if (ours.sunk > 0 && (ours.num - ours.sunk) === 1) {
+    return 'E'
+  }
+  return 'D'
+}
+
+function simulateFleetMVP(fleet) {
+  if (fleet == null) fleet = []
+  let m = -1, mvp = null
+  for (const [i, ship] of fleet.entries()) {
+    if (ship == null)
+      continue
+    if (mvp == null || ship.damage > mvp.damage) {
+      m = i
+      mvp = ship
+    }
+  }
+  return m
 }
 
 function getEngagementStage(packet) {
@@ -551,7 +625,7 @@ class Simulator2 {
         ].includes(path)) {
       this._result = new Result({
         rank: packet.api_win_rank,
-        mvp: [(packet.api_mvp || 0) - 1, (packet.api_mvp_combined || 0) - 1],
+        mvp : [(packet.api_mvp || 0) - 1, (packet.api_mvp_combined || 0) - 1],
         getShip: (packet.api_get_ship || {}).api_ship_id,
         getItem: (packet.api_get_useitem || {}).api_useitem_id,
       })
@@ -564,6 +638,16 @@ class Simulator2 {
   get result() {
     if (this._result != null)
       return this._result
+
+    const rank = simulateBattleRank(
+      this.mainFleet, this.escortFleet, this.enemyFleet, this.enemyEscort)
+    const mvp = [
+      simulateFleetMVP(this.mainFleet),
+      simulateFleetMVP(this.escortFleet),
+    ]
+
+    this._result = new Result({rank, mvp})
+    return this._result
   }
 }
 
