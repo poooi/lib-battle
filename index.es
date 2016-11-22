@@ -1,6 +1,6 @@
 
 import * as Models from './models'
 import PacketManager from './packet'
-const Simulator = require('./simulator')
+import Simulator from './simulator'
 
 export {Models, PacketManager, Simulator}
