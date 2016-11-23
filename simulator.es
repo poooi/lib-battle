@@ -29,8 +29,8 @@ const SupportTypeMap = {
   3: StageType.Torpedo,
 }
 
-const HalfSunkNumber = [
-  0, 1, 1, 2, 2, 3, 4,
+const HalfSunkNumber = [  // 7~12 is guessed.
+  0, 1, 1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8
 ]
 
 function useItem(ship) {
@@ -314,7 +314,7 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
     return {
       num: shipNum,
       sunk: sunkNum,
-      rate: Math.floor(lostHP / totalHP),
+      rate: Math.floor(lostHP / totalHP * 100),
       flagshipSunk, flagshipCritical,
     }
   }
