@@ -364,6 +364,31 @@ function simulateFleetMVP(fleet) {
   return m
 }
 
+function simulateFleetNightMVP(stages) {
+  // Damage sum: Only escort fleet
+  let sum = Array(6).fill(0)
+  for (const stage of stages) {
+    if (stage.type == StageType.Night) {
+      for (const attack of stage.attacks) {
+        const {ship: fromShip, damage} = attack
+        if (ship != null && ship.owner == ShipOwner.Ours) {
+          const {pos} = ship
+          if (7 <= pos && pos <= 12)
+            sum[pos - 7] += damage
+          else
+            console.warn("Non-escort fleet ship attack in night stage", ship, attack)
+        }
+      }
+    }
+  }
+  // MVP index: m = main fleet, e = escort fleet
+  let m = 0
+  for (const i of _.range(0,6))
+    if (sum[i] > m)
+      m = i
+  return m
+}
+
 function getEngagementStage(packet) {
   let picks = _.pick(packet, 'api_search', 'api_formation')
   picks.gimmick = [packet.api_boss_damaged, packet.api_xal01].find(x => x != null)
@@ -390,6 +415,7 @@ class Simulator2 {
     // Stage
     this.stages  = []
     this._result = null
+    this._isNightOnlyMVP = false
   }
 
   _initFleet(rawFleet, intl=0) {
@@ -618,8 +644,15 @@ class Simulator2 {
          '/kcsapi/api_req_combined_battle/ec_midnight_battle',
         ].includes(path)) {
 
-      // TODO: We need better solution
+      // MVP rule is special for combined fleet. It may be a kancolle bug.
+      if (['/kcsapi/api_req_combined_battle/midnight_battle',
+           '/kcsapi/api_req_combined_battle/ec_midnight_battle',
+          ].includes(path)) {
+        this._isNightOnlyMVP = true
+      }
+
       // HACK: Add Engagement Stage to sp_midnight battle.
+      // TODO: We need better solution
       if (path.includes('sp_midnight')) {
         stages.push(getEngagementStage(packet))
       }
@@ -639,9 +672,6 @@ class Simulator2 {
         getItem: (packet.api_get_useitem || {}).api_useitem_id,
       })
     }
-
-    // Compatibility: return stages
-    return stages
   }
 
   get result() {
@@ -650,10 +680,9 @@ class Simulator2 {
 
     const rank = simulateBattleRank(
       this.mainFleet, this.escortFleet, this.enemyFleet, this.enemyEscort)
-    const mvp = [
-      simulateFleetMVP(this.mainFleet),
-      simulateFleetMVP(this.escortFleet),
-    ]
+    const mvp = this._isNightOnlyMVP ?
+      [0, simulateFleetNightMVP(this.stages)] :
+      [simulateFleetMVP(this.mainFleet), simulateFleetMVP(this.escortFleet)]
 
     return new Result({rank, mvp})
   }
