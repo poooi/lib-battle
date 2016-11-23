@@ -376,9 +376,9 @@ function getEngagementStage(packet) {
 class Simulator2 {
   constructor(fleet, opts={}) {
     this.fleetType    = fleet.type || 0
-    this.mainFleet    = this.initFleet(fleet.main, 0)
-    this.escortFleet  = this.initFleet(fleet.escort, 6)
-    this.supportFleet = this.initFleet(fleet.support)
+    this.mainFleet    = this._initFleet(fleet.main, 0)
+    this.escortFleet  = this._initFleet(fleet.escort, 6)
+    this.supportFleet = this._initFleet(fleet.support)
     this.landBaseAirCorps = fleet.LBAC
     this.enemyFleet   = null  // Assign at first packet
     this.enemyEscort  = null  // ^
@@ -392,7 +392,7 @@ class Simulator2 {
     this._result = null
   }
 
-  initFleet(rawFleet, intl=0) {
+  _initFleet(rawFleet, intl=0) {
     if (!(rawFleet != null)) return
     let fleet = []
     for (let [i, rawShip] of rawFleet.entries()) {
@@ -414,7 +414,7 @@ class Simulator2 {
     return fleet
   }
 
-  initEnemy(intl=0, api_ship_ke, api_eSlot, api_maxhps, api_nowhps, api_ship_lv) {
+  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_maxhps, api_nowhps, api_ship_lv) {
     if (!(api_ship_ke != null)) return
     let fleet = []
     for (const i of _.range(1, 7)) {
@@ -443,13 +443,22 @@ class Simulator2 {
     return fleet
   }
 
+  static auto(battle) {
+    if (battle == null)
+      return
+    let s = new Simulator2(battle.fleet)
+    for (const packet of battle.packet)
+      s.simulate(packet)
+    return s
+  }
+
   simulate(packet) {
     if (packet == null) return
     const path = packet.poi_path
 
     if (this.enemyFleet == null) {
-      this.enemyFleet = this.initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv)
-      this.enemyEscort = this.initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined)
+      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv)
+      this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined)
     }
     // HACK: Only enemy carrier task force now.
     const enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
@@ -646,8 +655,7 @@ class Simulator2 {
       simulateFleetMVP(this.escortFleet),
     ]
 
-    this._result = new Result({rank, mvp})
-    return this._result
+    return new Result({rank, mvp})
   }
 }
 

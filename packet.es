@@ -142,7 +142,8 @@ class PacketManager extends EventEmitter {
     // Process packet in battle
     if (this.battle) {
       if (req.path === '/kcsapi/api_req_map/start_air_base') {
-        this.landBaseAirCorps = this.getLandBaseAirCorps()
+        let areaId = this.battle.map[0]
+        this.landBaseAirCorps = this.getLandBaseAirCorps(areaId)
         return
       }
 
@@ -221,10 +222,11 @@ class PacketManager extends EventEmitter {
     return item
   }
 
-  getLandBaseAirCorps() {
+  getLandBaseAirCorps(areaId) {
     let landBaseAirCorps = []
     for (let corps of this.api_base_corps) {
-      if (!(corps.api_action_kind === 1)) {
+      // Use `==` to cast automatically.
+      if (!(corps.api_area_id == areaId && corps.api_action_kind === 1)) {
         continue
       }
       corps = Object.clone(corps)
