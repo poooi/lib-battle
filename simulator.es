@@ -368,17 +368,17 @@ function simulateFleetNightMVP(stages) {
   // Damage sum: Only escort fleet
   let sum = Array(6).fill(0)
   for (const stage of stages) {
-    if (stage.type == StageType.Night) {
-      for (const attack of stage.attacks) {
-        const {ship: fromShip, damage} = attack
-        if (ship != null && ship.owner == ShipOwner.Ours) {
-          const {pos} = ship
-          if (7 <= pos && pos <= 12)
-            sum[pos - 7] += damage
-          else
-            console.warn("Non-escort fleet ship attack in night stage", ship, attack)
-        }
-      }
+    if (stage == null || stage.attacks == null || stage.type != StageType.Night)
+      continue
+    for (const attack of stage.attacks) {
+      const {ship: fromShip, damage} = attack
+      if (ship == null || ship.owner != ShipOwner.Ours)
+        continue
+      const {pos} = ship
+      if (7 <= pos && pos <= 12)
+        sum[pos - 7] += damage
+      else
+        console.warn("Non-escort fleet ship attack in night stage", ship, attack)
     }
   }
   // MVP index: m = main fleet, e = escort fleet
@@ -416,6 +416,15 @@ class Simulator2 {
     this.stages  = []
     this._result = null
     this._isNightOnlyMVP = false
+  }
+
+  static auto(battle, opts) {
+    if (battle == null)
+      return
+    let s = new Simulator2(battle.fleet, opts)
+    for (const packet of battle.packet)
+      s.simulate(packet)
+    return s
   }
 
   _initFleet(rawFleet, intl=0) {
@@ -467,15 +476,6 @@ class Simulator2 {
       fleet.push(ship)
     }
     return fleet
-  }
-
-  static auto(battle) {
-    if (battle == null)
-      return
-    let s = new Simulator2(battle.fleet)
-    for (const packet of battle.packet)
-      s.simulate(packet)
-    return s
   }
 
   simulate(packet) {
