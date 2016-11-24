@@ -104,9 +104,9 @@ export class Battle {
 }
 
 export const BattleType = {
-  Normal : "Normal",
-  Boss   : "Boss",
-  Pratice: "Pratice",
+  Normal  : "Normal",
+  Boss    : "Boss",
+  Practice: "Pratice",
 }
 
 export class Fleet {

@@ -80,7 +80,7 @@ class PacketManager extends EventEmitter {
       }
     }
 
-    // Pratice Enemy Information
+    // Practice Enemy Information
     if (req.path === '/kcsapi/api_req_member/get_practice_enemyinfo') {
       this.praticeOpponent = `${body.api_nickname} (Lv.${body.api_level})`
     }
@@ -125,7 +125,7 @@ class PacketManager extends EventEmitter {
     // Enter pratice battle
     if (req.path == '/kcsapi/api_req_practice/battle') {
       this.battle = new Battle({
-        type:   BattleType.Pratice,
+        type:   BattleType.Practice,
         map:    [],
         desc:   this.praticeOpponent,
         time:   null,  // Assign later
