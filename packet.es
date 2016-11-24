@@ -16,7 +16,7 @@ class PacketManager extends EventEmitter {
     this.landBaseAirCorps   = null  // Prepare for fleet
     this.api_base_corps     = null  // Raw api data
 
-    this.praticeOpponent = null
+    this.practiceOpponent = null
 
     window.addEventListener('game.response', this.gameResponse)
   }
@@ -82,7 +82,7 @@ class PacketManager extends EventEmitter {
 
     // Practice Enemy Information
     if (req.path === '/kcsapi/api_req_member/get_practice_enemyinfo') {
-      this.praticeOpponent = `${body.api_nickname} (Lv.${body.api_level})`
+      this.practiceOpponent = `${body.api_nickname} (Lv.${body.api_level})`
     }
 
 
@@ -103,7 +103,7 @@ class PacketManager extends EventEmitter {
       this.battle = null
       this.supportFleet = null
       this.landBaseAirCorps = null
-      this.praticeOpponent = null
+      this.practiceOpponent = null
       return
     }
 
@@ -122,12 +122,12 @@ class PacketManager extends EventEmitter {
       return
     }
 
-    // Enter pratice battle
+    // Enter practice battle
     if (req.path == '/kcsapi/api_req_practice/battle') {
       this.battle = new Battle({
         type:   BattleType.Practice,
         map:    [],
-        desc:   this.praticeOpponent,
+        desc:   this.practiceOpponent,
         time:   null,  // Assign later
         fleet:  null,  // Assign later
         packet: [],
