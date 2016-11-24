@@ -368,15 +368,17 @@ function simulateFleetNightMVP(stages) {
   // Damage sum: Only escort fleet
   let sum = Array(6).fill(0)
   for (const stage of stages) {
-    if (stage == null || stage.attacks == null || stage.type != StageType.Night)
+    if (!(stage != null && stage.attacks != null))
+      continue
+    if (!(stage.type === StageType.Shelling && stage.subtype === StageType.Night))
       continue
     for (const attack of stage.attacks) {
-      const {ship: fromShip, damage} = attack
+      const {fromShip: ship, damage} = attack
       if (ship == null || ship.owner != ShipOwner.Ours)
         continue
       const {pos} = ship
       if (7 <= pos && pos <= 12)
-        sum[pos - 7] += damage
+        sum[pos - 7] += damage.reduce((x, y) => x + y, 0)
       else
         console.warn("Non-escort fleet ship attack in night stage", ship, attack)
     }
