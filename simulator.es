@@ -647,9 +647,7 @@ class Simulator2 {
         ].includes(path)) {
 
       // MVP rule is special for combined fleet. It may be a kancolle bug.
-      if (['/kcsapi/api_req_combined_battle/midnight_battle',
-           '/kcsapi/api_req_combined_battle/ec_midnight_battle',
-          ].includes(path)) {
+      if (fleetType === 1 || fleetType ==== 2 || fleetType === 3) {
         this._isNightOnlyMVP = true
       }
 
