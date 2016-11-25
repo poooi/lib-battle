@@ -648,7 +648,7 @@ class Simulator2 {
         ].includes(path)) {
 
       // MVP rule is special for combined fleet. It may be a kancolle bug.
-      if (fleetType === 1 || fleetType ==== 2 || fleetType === 3) {
+      if (fleetType === 1 || fleetType === 2 || fleetType === 3) {
         this._isNightOnlyMVP = true
       }
 
