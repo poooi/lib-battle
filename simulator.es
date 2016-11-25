@@ -504,6 +504,7 @@ class Simulator2 {
          '/kcsapi/api_req_combined_battle/ld_airbattle',
          '/kcsapi/api_req_combined_battle/ec_battle',
          '/kcsapi/api_req_combined_battle/each_battle',
+         '/kcsapi/api_req_combined_battle/each_battle_water',
         ].includes(path)) {
 
       // Engagement
