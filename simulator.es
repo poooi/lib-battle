@@ -51,8 +51,6 @@ function useItem(ship) {
 }
 
 function damageShip(fromShip, toShip, damage) {
-  if (damage === 0)
-    return
   if (fromShip != null) {
     fromShip.damage += damage
   }
