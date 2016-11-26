@@ -244,11 +244,15 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
     return
   }
   if (flag === 1) {
-    let stage = simulateAerial(null, null, enemyFleet, enemyEscort, support.api_support_airatack)
+    const kouku = support.api_support_airatack
+    const st3 = kouku.api_stage3
+    let fleet = [].concat(enemyFleet, enemyEscort || [])
+    let attacks = simulateAerialAttack(fleet, st3.api_edam, st3.api_ebak_flag, st3.api_erai_flag, st3.api_ecl_flag)
     return new Stage({
-      ...stage,
-      type: StageType.Support,
+      type   : StageType.Support,
       subtype: SupportTypeMap[flag],
+      attacks: attacks,
+      kouku  : kouku,
     })
   }
   if (flag === 2 || flag === 3) {
