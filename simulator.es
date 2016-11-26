@@ -670,8 +670,15 @@ class Simulator2 {
          '/kcsapi/api_req_sortie/battleresult',
          '/kcsapi/api_req_combined_battle/battleresult',
         ].includes(path)) {
+      let rank = packet.api_win_rank
+      if (rank === 'S') {
+        let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.initHP, 0)
+        let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.nowHP,  0)
+        if (nowHPSum >= initHPSum)
+          rank = 'SS'
+      }
       this._result = new Result({
-        rank: packet.api_win_rank,
+        rank: rank,
         mvp : [(packet.api_mvp || 0) - 1, (packet.api_mvp_combined || 0) - 1],
         getShip: (packet.api_get_ship || {}).api_ship_id,
         getItem: (packet.api_get_useitem || {}).api_useitem_id,
