@@ -30,7 +30,7 @@ const SupportTypeMap = {
 }
 
 const HalfSunkNumber = [  // 7~12 is guessed.
-  0, 1, 1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8
+  0, 1, 1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8,
 ]
 
 function useItem(ship) {
@@ -654,8 +654,10 @@ class Simulator2 {
         ].includes(path)) {
 
       // MVP rule is special for combined fleet. It may be a kancolle bug.
-      if (fleetType === 1 || fleetType === 2 || fleetType === 3) {
-        this._isNightOnlyMVP = true
+      if (path === '/kcsapi/api_req_combined_battle/midnight_battle') {
+        if (fleetType === 1 || fleetType === 2 || fleetType === 3) {
+          this._isNightOnlyMVP = true
+        }
       }
 
       // HACK: Add Engagement Stage to sp_midnight battle.
