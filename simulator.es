@@ -389,9 +389,11 @@ function simulateFleetNightMVP(stages) {
   }
   // MVP index: m = main fleet, e = escort fleet
   let m = 0
-  for (const i of _.range(0,6))
-    if (sum[i] > m)
+  for (const i of _.range(0,6)) {
+    if (sum[i] > sum[m]) {
       m = i
+    }
+  }
   return m
 }
 
