@@ -318,7 +318,7 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
     return {
       num: shipNum,
       sunk: sunkNum,
-      rate: Math.floor(lostHP / totalHP * 100),
+      rate: lostHP / totalHP * 100,
       flagshipSunk, flagshipCritical,
     }
   }
