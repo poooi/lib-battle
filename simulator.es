@@ -495,10 +495,55 @@ class Simulator2 {
       this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined)
     }
     // HACK: Only enemy carrier task force now.
-    const enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
+    let enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
 
-    const {fleetType, mainFleet, escortFleet, enemyFleet, enemyEscort} = this
-    const {stages} = this
+    let {fleetType, mainFleet, escortFleet, enemyFleet, enemyEscort} = this
+    let {stages} = this
+
+    // We can assert fleet.type is matched with API path.
+    if (['/kcsapi/api_req_practice/battle',
+         '/kcsapi/api_req_sortie/battle',
+         '/kcsapi/api_req_sortie/airbattle',
+         '/kcsapi/api_req_sortie/ld_airbattle',
+         '/kcsapi/api_req_combined_battle/ec_battle',
+         '/kcsapi/api_req_practice/midnight_battle',
+         '/kcsapi/api_req_battle_midnight/battle',
+         '/kcsapi/api_req_battle_midnight/sp_midnight',
+         '/kcsapi/api_req_combined_battle/ec_midnight_battle',
+         ].includes(path)) {
+      if (!(fleetType === 0)) {
+        console.warn(`${path} expect fleet.type=0, but got ${fleetType}.`)
+        fleetType = 0
+      }
+    }
+    if (['/kcsapi/api_req_combined_battle/battle',
+         '/kcsapi/api_req_combined_battle/each_battle',
+         ].includes(path)) {
+      if (!(fleetType === 1 || fleetType === 3)) {
+        console.warn(`${path} expect fleet.type=1,3, but got ${fleetType}.`)
+        // HACK: Currently CTF & TE act the same
+        fleetType = 1
+      }
+    }
+    if (['/kcsapi/api_req_combined_battle/battle_water',
+         '/kcsapi/api_req_combined_battle/each_battle_water',
+         ].includes(path)) {
+      if (!(fleetType === 2)) {
+        console.warn(`${path} expect fleet.type=2, but got ${fleetType}.`)
+        fleetType = 2
+      }
+    }
+    if (['/kcsapi/api_req_combined_battle/airbattle',
+         '/kcsapi/api_req_combined_battle/ld_airbattle',
+         '/kcsapi/api_req_combined_battle/midnight_battle',
+         '/kcsapi/api_req_combined_battle/sp_midnight',
+         ].includes(path)) {
+      if (!(fleetType === 1 || fleetType === 2 || fleetType === 3)) {
+        console.warn(`${path} expect fleet.type=1,2,3, but got ${fleetType}.`)
+        // We Can't set fleet.type
+      }
+    }
+
 
     if (['/kcsapi/api_req_practice/battle',
          '/kcsapi/api_req_sortie/battle',
@@ -511,7 +556,7 @@ class Simulator2 {
          '/kcsapi/api_req_combined_battle/ec_battle',
          '/kcsapi/api_req_combined_battle/each_battle',
          '/kcsapi/api_req_combined_battle/each_battle_water',
-        ].includes(path)) {
+         ].includes(path)) {
 
       // Engagement
       stages.push(getEngagementStage(packet))
@@ -651,7 +696,7 @@ class Simulator2 {
          '/kcsapi/api_req_combined_battle/midnight_battle',
          '/kcsapi/api_req_combined_battle/sp_midnight',
          '/kcsapi/api_req_combined_battle/ec_midnight_battle',
-        ].includes(path)) {
+         ].includes(path)) {
 
       // MVP rule is special for combined fleet. It may be a kancolle bug.
       if (path === '/kcsapi/api_req_combined_battle/midnight_battle') {
@@ -673,7 +718,7 @@ class Simulator2 {
     if (['/kcsapi/api_req_practice/battle_result',
          '/kcsapi/api_req_sortie/battleresult',
          '/kcsapi/api_req_combined_battle/battleresult',
-        ].includes(path)) {
+         ].includes(path)) {
       let rank = packet.api_win_rank
       if (rank === 'S') {
         let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.initHP, 0)
