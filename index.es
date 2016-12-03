@@ -3,11 +3,8 @@ import PacketManager from './packet'
 import Simulator from './simulator'
 
 // Compatibility: Export Models
-import {Battle, BattleType, Fleet} from './packet'
-import {Stage, StageType, Attack, AttackType, HitType, Ship, ShipOwner, Result, Rank} from './simulator'
-const Models = {
-  Battle, BattleType, Fleet,
-  Stage, StageType, Attack, AttackType, HitType, Ship, ShipOwner, Result, Rank,
-}
+import * as M1 from './packet'
+import * as M2 from './simulator'
+const Models = {...M1, ...M2}
 
 export {Models, PacketManager, Simulator}
