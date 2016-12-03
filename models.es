@@ -169,6 +169,16 @@ export class Result {
   }
 }
 
+export const Rank = {
+  SS: 'SS',
+  S : 'S',
+  A : 'A',
+  B : 'B',
+  C : 'C',
+  D : 'D',
+  E : 'E',
+}
+
 // PacketManager
 export class Battle {
   constructor(opts) {

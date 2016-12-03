@@ -1,6 +1,6 @@
 
 import _ from 'lodash'
-import {Stage, StageType, Attack, AttackType, HitType, Ship, ShipOwner, Result} from './models'
+import {Stage, StageType, Attack, AttackType, HitType, Ship, ShipOwner, Result, Rank} from './models'
 
 // 特殊砲撃: 0=通常, 1=レーザー攻撃, 2=連撃, 3=カットイン(主砲/副砲), 4=カットイン(主砲/電探), 5=カットイン(主砲/徹甲), 6=カットイン(主砲/主砲)
 const DayAttackTypeMap = {
@@ -27,6 +27,16 @@ const SupportTypeMap = {
   1: StageType.Aerial,
   2: StageType.Shelling,
   3: StageType.Torpedo,
+}
+
+const BattleRankMap = {
+  'SS': Rank.SS,
+  'S': Rank.S,
+  'A': Rank.A,
+  'B': Rank.B,
+  'C': Rank.C,
+  'D': Rank.D,
+  'E': Rank.E,
 }
 
 const HalfSunkNumber = [  // 7~12 is guessed.
@@ -328,30 +338,30 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
   if (ours.sunk === 0) {
     if (enemy.sunk === enemy.num) {
       if (ours.rate <= 0)
-        return 'SS'
+        return Rank.SS
       else
-        return 'S'
+        return Rank.S
     }
     if (enemy.num > 1 && enemy.sunk >= HalfSunkNumber[enemy.num]) {
-      return 'A'
+      return Rank.A
     }
   }
   if (enemy.flagshipSunk && ours.sunk < enemy.sunk) {
-    return 'B'
+    return Rank.B
   }
   if (ours.num === 1 && ours.flagshipCritical) {
-    return 'D'
+    return Rank.D
   }
   if (2 * enemy.rate > 5 * ours.rate) {
-    return 'B'
+    return Rank.B
   }
   if (9 * enemy.rate > 10 * ours.rate) {
-    return 'C'
+    return Rank.C
   }
   if (ours.sunk > 0 && (ours.num - ours.sunk) === 1) {
-    return 'E'
+    return Rank.E
   }
-  return 'D'
+  return Rank.D
 }
 
 // https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E9%95%B7%E8%B7%9D%E9%9B%A2%E7%A9%BA%E8%A5%B2%E6%88%A6%E3%81%A7%E3%81%AE%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
@@ -360,13 +370,13 @@ function simulateAirRaidBattleRank(mainFleet, escortFleet) {
   let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.nowHP,  0)
   let rate = (nowHPSum - initHPSum) / initHPSum * 100
 
-  if (rate <= 0) return 'SS'
-  if (rate < 10) return 'A'
-  if (rate < 20) return 'B'
-  if (rate < 50) return 'C'
-  if (rate < 80) return 'D'
+  if (rate <= 0) return Rank.SS
+  if (rate < 10) return Rank.A
+  if (rate < 20) return Rank.B
+  if (rate < 50) return Rank.C
+  if (rate < 80) return Rank.D
   // else
-  return 'E'
+  return Rank.E
 }
 
 function simulateFleetMVP(fleet) {
@@ -751,12 +761,12 @@ class Simulator2 {
       '/kcsapi/api_req_sortie/battleresult',
       '/kcsapi/api_req_combined_battle/battleresult',
     ].includes(path)) {
-      let rank = packet.api_win_rank
-      if (rank === 'S') {
+      let rank = BattleRankMap[packet.api_win_rank]
+      if (rank === Rank.S) {
         let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.initHP, 0)
         let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.nowHP,  0)
         if (nowHPSum >= initHPSum)
-          rank = 'SS'
+          rank = Rank.SS
       }
       this._result = new Result({
         rank: rank,
