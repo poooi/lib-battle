@@ -517,43 +517,47 @@ class Simulator2 {
     let {stages} = this
 
     // We can assert fleet.type is matched with API path.
-    if (['/kcsapi/api_req_practice/battle',
-         '/kcsapi/api_req_sortie/battle',
-         '/kcsapi/api_req_sortie/airbattle',
-         '/kcsapi/api_req_sortie/ld_airbattle',
-         '/kcsapi/api_req_combined_battle/ec_battle',
-         '/kcsapi/api_req_practice/midnight_battle',
-         '/kcsapi/api_req_battle_midnight/battle',
-         '/kcsapi/api_req_battle_midnight/sp_midnight',
-         '/kcsapi/api_req_combined_battle/ec_midnight_battle',
-         ].includes(path)) {
+    if ([  // Normal Fleet
+      '/kcsapi/api_req_practice/battle',
+      '/kcsapi/api_req_sortie/battle',
+      '/kcsapi/api_req_sortie/airbattle',
+      '/kcsapi/api_req_sortie/ld_airbattle',
+      '/kcsapi/api_req_combined_battle/ec_battle',
+      '/kcsapi/api_req_practice/midnight_battle',
+      '/kcsapi/api_req_battle_midnight/battle',
+      '/kcsapi/api_req_battle_midnight/sp_midnight',
+      '/kcsapi/api_req_combined_battle/ec_midnight_battle',
+    ].includes(path)) {
       if (!(fleetType === 0)) {
         console.warn(`${path} expect fleet.type=0, but got ${fleetType}.`)
         fleetType = 0
       }
     }
-    if (['/kcsapi/api_req_combined_battle/battle',
-         '/kcsapi/api_req_combined_battle/each_battle',
-         ].includes(path)) {
+    if ([  // Carrier Task Force & Transport Escort
+      '/kcsapi/api_req_combined_battle/battle',
+      '/kcsapi/api_req_combined_battle/each_battle',
+    ].includes(path)) {
       if (!(fleetType === 1 || fleetType === 3)) {
         console.warn(`${path} expect fleet.type=1,3, but got ${fleetType}.`)
         // HACK: Currently CTF & TE act the same
         fleetType = 1
       }
     }
-    if (['/kcsapi/api_req_combined_battle/battle_water',
-         '/kcsapi/api_req_combined_battle/each_battle_water',
-         ].includes(path)) {
+    if ([  // Surface Task Force
+      '/kcsapi/api_req_combined_battle/battle_water',
+      '/kcsapi/api_req_combined_battle/each_battle_water',
+    ].includes(path)) {
       if (!(fleetType === 2)) {
         console.warn(`${path} expect fleet.type=2, but got ${fleetType}.`)
         fleetType = 2
       }
     }
-    if (['/kcsapi/api_req_combined_battle/airbattle',
-         '/kcsapi/api_req_combined_battle/ld_airbattle',
-         '/kcsapi/api_req_combined_battle/midnight_battle',
-         '/kcsapi/api_req_combined_battle/sp_midnight',
-         ].includes(path)) {
+    if ([  // Combined Fleet
+      '/kcsapi/api_req_combined_battle/airbattle',
+      '/kcsapi/api_req_combined_battle/ld_airbattle',
+      '/kcsapi/api_req_combined_battle/midnight_battle',
+      '/kcsapi/api_req_combined_battle/sp_midnight',
+    ].includes(path)) {
       if (!(fleetType === 1 || fleetType === 2 || fleetType === 3)) {
         console.warn(`${path} expect fleet.type=1,2,3, but got ${fleetType}.`)
         // We Can't set fleet.type
@@ -562,32 +566,34 @@ class Simulator2 {
 
 
     // MVP rule is special for combined fleet. It may be a kancolle bug.
-    if (path === '/kcsapi/api_req_combined_battle/midnight_battle') {
+    if (['/kcsapi/api_req_combined_battle/midnight_battle'].includes(path)) {
       if (fleetType === 1 || fleetType === 2 || fleetType === 3) {
         this._isNightOnlyMVP = true
       }
     }
 
     // Rank rule is special for ld_airbattle.
-    if (['/kcsapi/api_req_sortie/ld_airbattle',
-         '/kcsapi/api_req_combined_battle/ld_airbattle',
-         ].includes(path)) {
+    if ([
+      '/kcsapi/api_req_sortie/ld_airbattle',
+      '/kcsapi/api_req_combined_battle/ld_airbattle',
+    ].includes(path)) {
       this._isAirRaid = true
     }
 
 
-    if (['/kcsapi/api_req_practice/battle',
-         '/kcsapi/api_req_sortie/battle',
-         '/kcsapi/api_req_sortie/airbattle',
-         '/kcsapi/api_req_sortie/ld_airbattle',
-         '/kcsapi/api_req_combined_battle/battle',
-         '/kcsapi/api_req_combined_battle/battle_water',
-         '/kcsapi/api_req_combined_battle/airbattle',
-         '/kcsapi/api_req_combined_battle/ld_airbattle',
-         '/kcsapi/api_req_combined_battle/ec_battle',
-         '/kcsapi/api_req_combined_battle/each_battle',
-         '/kcsapi/api_req_combined_battle/each_battle_water',
-         ].includes(path)) {
+    if ([  // Day Battle Stages
+      '/kcsapi/api_req_practice/battle',
+      '/kcsapi/api_req_sortie/battle',
+      '/kcsapi/api_req_sortie/airbattle',
+      '/kcsapi/api_req_sortie/ld_airbattle',
+      '/kcsapi/api_req_combined_battle/battle',
+      '/kcsapi/api_req_combined_battle/battle_water',
+      '/kcsapi/api_req_combined_battle/airbattle',
+      '/kcsapi/api_req_combined_battle/ld_airbattle',
+      '/kcsapi/api_req_combined_battle/ec_battle',
+      '/kcsapi/api_req_combined_battle/each_battle',
+      '/kcsapi/api_req_combined_battle/each_battle_water',
+    ].includes(path)) {
 
       // Engagement
       stages.push(getEngagementStage(packet))
@@ -721,13 +727,14 @@ class Simulator2 {
       }
     }
 
-    if (['/kcsapi/api_req_practice/midnight_battle',
-         '/kcsapi/api_req_battle_midnight/battle',
-         '/kcsapi/api_req_battle_midnight/sp_midnight',
-         '/kcsapi/api_req_combined_battle/midnight_battle',
-         '/kcsapi/api_req_combined_battle/sp_midnight',
-         '/kcsapi/api_req_combined_battle/ec_midnight_battle',
-         ].includes(path)) {
+    if ([  // Night Battle Stages
+      '/kcsapi/api_req_practice/midnight_battle',
+      '/kcsapi/api_req_battle_midnight/battle',
+      '/kcsapi/api_req_battle_midnight/sp_midnight',
+      '/kcsapi/api_req_combined_battle/midnight_battle',
+      '/kcsapi/api_req_combined_battle/sp_midnight',
+      '/kcsapi/api_req_combined_battle/ec_midnight_battle',
+    ].includes(path)) {
 
       // HACK: Add Engagement Stage to sp_midnight battle.
       // TODO: We need better solution
@@ -739,10 +746,11 @@ class Simulator2 {
       stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
     }
 
-    if (['/kcsapi/api_req_practice/battle_result',
-         '/kcsapi/api_req_sortie/battleresult',
-         '/kcsapi/api_req_combined_battle/battleresult',
-         ].includes(path)) {
+    if ([  // Battle Result
+      '/kcsapi/api_req_practice/battle_result',
+      '/kcsapi/api_req_sortie/battleresult',
+      '/kcsapi/api_req_combined_battle/battleresult',
+    ].includes(path)) {
       let rank = packet.api_win_rank
       if (rank === 'S') {
         let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.initHP, 0)
@@ -763,6 +771,7 @@ class Simulator2 {
     if (this._result != null)
       return this._result
 
+    // Simulate battle result
     const rank = this._isAirRaid
       ? simulateAirRaidBattleRank(this.mainFleet, this.escortFleet)
       : simulateBattleRank(this.mainFleet, this.escortFleet, this.enemyFleet, this.enemyEscort)
