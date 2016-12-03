@@ -126,7 +126,6 @@ export class EngagementInfo {
     this.eFormation = opts.eFormation  // api_formation[1] => Formation
     this.fDetection = opts.fDetection  // api_search[0]    => Detection
     this.eDetection = opts.eDetection  // api_search[1]    => Detection
-    this.gimmick    = opts.gimmick     // api_boss_damaged || api_xal01 || null
     // Night Combat
     this.fContact = opts.fContact  // api_touch_plane[0]
     this.eContact = opts.eContact  // api_touch_plane[1]
@@ -204,6 +203,42 @@ const NightAttackTypeMap = {
   5: AttackType.Primary_Primary_CI,
 }
 
+const AirControlMap = {
+  0: AirControl.Parity,
+  1: AirControl.Supremacy,
+  2: AirControl.Superiority,
+  3: AirControl.Incapability,
+  4: AirControl.Denial,
+}
+
+const DetectionMap = {
+  1: Detection.Success,
+  2: Detection.SuccessNR,
+  3: Detection.FailureNR,
+  4: Detection.Failure,
+  5: Detection.SuccessNP,
+  6: Detection.FailureNP,
+}
+
+const FormationMap = {
+  1: Formation.Ahead,
+  2: Formation.Double,
+  3: Formation.Diamond,
+  4: Formation.Echelon,
+  5: Formation.Abreast,
+  11: Formation.CruisingAntiSub,
+  12: Formation.CruisingForward,
+  13: Formation.CruisingDiamond,
+  14: Formation.CruisingBattle,
+}
+
+const EngagementMap = {
+  1: Engagement.Parallel,
+  2: Engagement.Headon,
+  3: Engagement.TAdvantage,
+  4: Engagement.TDisadvantage,
+}
+
 const SupportTypeMap = {
   1: StageType.Aerial,
   2: StageType.Shelling,
@@ -255,6 +290,85 @@ function damageShip(fromShip, toShip, damage) {
   return {fromHP, toHP, item}
 }
 
+function generateAerialInfo(kouku, mainFleet, escortFleet) {
+  if (!(kouku != null))
+    return
+
+  const a = new AerialInfo()
+  const stage1 = kouku.api_stage1
+  const stage2 = kouku.api_stage2
+  let fPlaneLost = 0, ePlaneLost = 0
+
+  // Stage 1
+  if (stage1 != null) {
+    const contact = stage1.api_touch_plane || [-1, -1]
+    a.control  = AirControlMap[stage1.api_disp_seiku]
+    a.fContact = contact[0]
+    a.eContact = contact[1]
+    a.fPlaneInit1 = stage1.api_f_count
+    a.fPlaneNow1  = stage1.api_f_count - stage1.api_f_lostcount
+    a.ePlaneInit1 = stage1.api_e_count
+    a.ePlaneNow1  = stage1.api_e_count - stage1.api_e_lostcount
+    fPlaneLost += stage1.api_f_lostcount
+    ePlaneLost += stage1.api_e_lostcount
+  }
+  // Stage 2
+  if (stage2 != null) {
+    const airfire = kouku.api_stage2.api_air_fire
+    if (airfire != null) {
+      let ship = null, idx = airfire.api_idx
+      if (0 <= idx && idx <= 5)  ship = mainFleet[idx]
+      if (6 <= idx && idx <= 11) ship = escortFleet[idx - 6]
+      a.aaciKind = airfire.api_kind
+      a.aaciShip = ship
+      a.aaciItems = airfire.api_use_items
+    }
+    a.fPlaneInit2 = stage2.api_f_count
+    a.fPlaneNow2  = stage2.api_f_count - stage2.api_f_lostcount
+    a.ePlaneInit2 = stage2.api_e_count
+    a.ePlaneNow2  = stage2.api_e_count - stage2.api_e_lostcount
+    fPlaneLost += stage2.api_f_lostcount
+    ePlaneLost += stage2.api_e_lostcount
+  }
+  // Summary
+  // We assume stage2 won't exist without stage1
+  if (stage1 != null) {
+    a.fPlaneInit = stage1.api_f_count
+    a.fPlaneNow  = stage1.api_f_count - fPlaneLost
+    a.ePlaneInit = stage1.api_e_count
+    a.ePlaneNow  = stage1.api_e_count - ePlaneLost
+  }
+}
+
+function genreateEngagementInfo(packet, oursFleet, emenyFleet) {
+  if (!(packet != null))
+    return
+
+  const e = new EngagementInfo()
+
+  // Day combat
+  const {api_formation, api_search} = packet
+  if (api_formation != null) {
+    e.engagement = EngagementMap[api_formation[2]]
+    e.fFormation = FormationMap[api_formation[0]]
+    e.eFormation = FormationMap[api_formation[1]]
+  }
+  if (api_search != null) {
+    e.fDetection = DetectionMap[api_search[0]]
+    e.eDetection = DetectionMap[api_search[1]]
+  }
+  // Night combat
+  const {api_touch_plane, api_flare_pos} = packet
+  if (api_touch_plane != null) {
+    e.fContact = api_touch_plane[0]
+    e.eContact = api_touch_plane[1]
+    e.fFlare   =  oursFleet[api_flare_pos[0] - 1]
+    e.eFlare   = emenyFleet[api_flare_pos[1] - 1]
+  }
+  // Weaken mechanism
+  const {api_boss_damaged, api_xal01} = packet
+  e.weakened = [api_boss_damaged, api_xal01].find(x => x != null)
+}
 
 function simulateAerialAttack(fleet, edam, ebak_flag, erai_flag, ecl_flag) {
   if (!(fleet != null && edam != null)) {
@@ -303,20 +417,20 @@ function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku) 
   })
 }
 
-function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, api_eydam, api_erai, api_ecl) {
-  if (!(enemyFleet != null && api_eydam != null)) {
+function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, eydam, erai, ecl) {
+  if (!(enemyFleet != null && eydam != null)) {
     return []
   }
   const list = []
-  for (let [i, t] of api_erai.entries()) {
+  for (let [i, t] of erai.entries()) {
     let fromShip, toShip
     if (i <= 0 || t <= 0) continue
     if (i <= 6) fromShip = mainFleet[i - 1]
     else        fromShip = escortFleet[i - 7]
     if (t <= 6) toShip = enemyFleet[t - 1]
     else        toShip = enemyEscort[t - 7]
-    let damage = Math.floor(api_eydam[i])
-    let hit = (api_ecl[i] === 2 ? HitType.Critical : (api_ecl[i] === 1 ? HitType.Hit : HitType.Miss))
+    let damage = Math.floor(eydam[i])
+    let hit = (ecl[i] === 2 ? HitType.Critical : (ecl[i] === 1 ? HitType.Hit : HitType.Miss))
     let {fromHP, toHP, item} = damageShip(fromShip, toShip, damage)
     list.push(new Attack({
       type    : AttackType.Normal,
@@ -488,8 +602,8 @@ function simulateLandBase(enemyFleet, enemyEscort, kouku) {
   return stage
 }
 
-// https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E6%88%A6%E9%97%98%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
 function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
+  // https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E6%88%A6%E9%97%98%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
   function calStatus(fleet) {
     let shipNum = 0, sunkNum = 0, totalHP = 0, lostHP = 0
     let flagshipSunk = false, flagshipCritical  = false
@@ -545,8 +659,8 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
   return Rank.D
 }
 
-// https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E9%95%B7%E8%B7%9D%E9%9B%A2%E7%A9%BA%E8%A5%B2%E6%88%A6%E3%81%A7%E3%81%AE%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
 function simulateAirRaidBattleRank(mainFleet, escortFleet) {
+  // https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E9%95%B7%E8%B7%9D%E9%9B%A2%E7%A9%BA%E8%A5%B2%E6%88%A6%E3%81%A7%E3%81%AE%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
   let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.initHP, 0)
   let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.nowHP,  0)
   let rate = (initHPSum - nowHPSum) / initHPSum * 100
