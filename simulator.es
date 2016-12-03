@@ -301,7 +301,6 @@ function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku) 
   })
 }
 
-// TODO: torpedo from main & escort fleet
 function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, api_eydam, api_erai, api_ecl) {
   if (!(enemyFleet != null && api_eydam != null)) {
     return []
@@ -548,7 +547,7 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
 function simulateAirRaidBattleRank(mainFleet, escortFleet) {
   let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.initHP, 0)
   let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.nowHP,  0)
-  let rate = (nowHPSum - initHPSum) / initHPSum * 100
+  let rate = (initHPSum - nowHPSum) / initHPSum * 100
 
   if (rate <= 0) return Rank.SS
   if (rate < 10) return Rank.A
