@@ -10,7 +10,6 @@ export class Stage {
     this.aerial  = opts.aerial    // AerialInfo
     this.engagement = opts.engagement  // EngagementInfo
     this.kouku   = opts.kouku     // Raw API data `api_kouku` (Deprecated)
-    this.api     = opts.api       // Engagement: Picked raw data (Deprecated)
   }
 }
 
@@ -292,9 +291,9 @@ function damageShip(fromShip, toShip, damage) {
 
 function preventNullObject(o) {
   // Prevent returning Object with all properties null.
-  let isNull = false
+  let isNull = true
   for (const k of Object.keys(o)) {
-    isNull = isNull || o[k] != null
+    isNull = isNull && o[k] == null
   }
   return isNull ? null : o
 }
@@ -305,15 +304,15 @@ function generateAerialInfo(kouku, mainFleet, escortFleet) {
 
   const stage1 = kouku.api_stage1
   const stage2 = kouku.api_stage2
-  const o = new AerialInfo()
+  const o = new AerialInfo({})
   let fPlaneLost = 0, ePlaneLost = 0
 
   // Stage 1
   if (stage1 != null) {
     const contact = stage1.api_touch_plane || [-1, -1]
     o.control  = AirControlMap[stage1.api_disp_seiku]
-    o.fContact = contact[0]
-    o.eContact = contact[1]
+    o.fContact = contact[0] > 0 ? contact[0] : null
+    o.eContact = contact[1] > 0 ? contact[1] : null
     o.fPlaneInit1 = stage1.api_f_count
     o.fPlaneNow1  = stage1.api_f_count - stage1.api_f_lostcount
     o.ePlaneInit1 = stage1.api_e_count
@@ -355,7 +354,7 @@ function generateEngagementInfo(packet, oursFleet, emenyFleet) {
   if (!(packet != null))
     return
 
-  const o = new EngagementInfo()
+  const o = new EngagementInfo({})
 
   // Day combat
   const {api_formation, api_search} = packet
@@ -371,8 +370,8 @@ function generateEngagementInfo(packet, oursFleet, emenyFleet) {
   // Night combat
   const {api_touch_plane, api_flare_pos} = packet
   if (api_touch_plane != null) {
-    o.fContact = api_touch_plane[0]
-    o.eContact = api_touch_plane[1]
+    o.fContact = api_touch_plane[0] > 0 ? api_touch_plane[0] : null
+    o.eContact = api_touch_plane[1] > 0 ? api_touch_plane[1] : null
     o.fFlare   =  oursFleet[api_flare_pos[0] - 1]
     o.eFlare   = emenyFleet[api_flare_pos[1] - 1]
   }
@@ -849,7 +848,6 @@ class Simulator2 {
       '/kcsapi/api_req_practice/midnight_battle',
       '/kcsapi/api_req_battle_midnight/battle',
       '/kcsapi/api_req_battle_midnight/sp_midnight',
-      '/kcsapi/api_req_combined_battle/ec_midnight_battle',
     ].includes(path)) {
       if (!(fleetType === 0)) {
         console.warn(`${path} expect fleet.type=0, but got ${fleetType}.`)
@@ -883,6 +881,14 @@ class Simulator2 {
     ].includes(path)) {
       if (!(fleetType === 1 || fleetType === 2 || fleetType === 3)) {
         console.warn(`${path} expect fleet.type=1,2,3, but got ${fleetType}.`)
+        // We Can't set fleet.type
+      }
+    }
+    if ([  // Any
+      '/kcsapi/api_req_combined_battle/ec_midnight_battle',
+    ].includes(path)) {
+      if (!(fleetType === 0 || fleetType === 1 || fleetType === 2 || fleetType === 3)) {
+        console.warn(`${path} expect fleet.type=0,1,2,3, but got ${fleetType}.`)
         // We Can't set fleet.type
       }
     }
