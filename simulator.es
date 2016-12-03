@@ -290,25 +290,34 @@ function damageShip(fromShip, toShip, damage) {
   return {fromHP, toHP, item}
 }
 
+function preventNullObject(o) {
+  // Prevent returning Object with all properties null.
+  let isNull = false
+  for (const k of Object.keys(o)) {
+    isNull = isNull || o[k] != null
+  }
+  return isNull ? null : o
+}
+
 function generateAerialInfo(kouku, mainFleet, escortFleet) {
   if (!(kouku != null))
     return
 
-  const a = new AerialInfo()
   const stage1 = kouku.api_stage1
   const stage2 = kouku.api_stage2
+  const o = new AerialInfo()
   let fPlaneLost = 0, ePlaneLost = 0
 
   // Stage 1
   if (stage1 != null) {
     const contact = stage1.api_touch_plane || [-1, -1]
-    a.control  = AirControlMap[stage1.api_disp_seiku]
-    a.fContact = contact[0]
-    a.eContact = contact[1]
-    a.fPlaneInit1 = stage1.api_f_count
-    a.fPlaneNow1  = stage1.api_f_count - stage1.api_f_lostcount
-    a.ePlaneInit1 = stage1.api_e_count
-    a.ePlaneNow1  = stage1.api_e_count - stage1.api_e_lostcount
+    o.control  = AirControlMap[stage1.api_disp_seiku]
+    o.fContact = contact[0]
+    o.eContact = contact[1]
+    o.fPlaneInit1 = stage1.api_f_count
+    o.fPlaneNow1  = stage1.api_f_count - stage1.api_f_lostcount
+    o.ePlaneInit1 = stage1.api_e_count
+    o.ePlaneNow1  = stage1.api_e_count - stage1.api_e_lostcount
     fPlaneLost += stage1.api_f_lostcount
     ePlaneLost += stage1.api_e_lostcount
   }
@@ -319,55 +328,59 @@ function generateAerialInfo(kouku, mainFleet, escortFleet) {
       let ship = null, idx = airfire.api_idx
       if (0 <= idx && idx <= 5)  ship = mainFleet[idx]
       if (6 <= idx && idx <= 11) ship = escortFleet[idx - 6]
-      a.aaciKind = airfire.api_kind
-      a.aaciShip = ship
-      a.aaciItems = airfire.api_use_items
+      o.aaciKind = airfire.api_kind
+      o.aaciShip = ship
+      o.aaciItems = airfire.api_use_items
     }
-    a.fPlaneInit2 = stage2.api_f_count
-    a.fPlaneNow2  = stage2.api_f_count - stage2.api_f_lostcount
-    a.ePlaneInit2 = stage2.api_e_count
-    a.ePlaneNow2  = stage2.api_e_count - stage2.api_e_lostcount
+    o.fPlaneInit2 = stage2.api_f_count
+    o.fPlaneNow2  = stage2.api_f_count - stage2.api_f_lostcount
+    o.ePlaneInit2 = stage2.api_e_count
+    o.ePlaneNow2  = stage2.api_e_count - stage2.api_e_lostcount
     fPlaneLost += stage2.api_f_lostcount
     ePlaneLost += stage2.api_e_lostcount
   }
   // Summary
   // We assume stage2 won't exist without stage1
   if (stage1 != null) {
-    a.fPlaneInit = stage1.api_f_count
-    a.fPlaneNow  = stage1.api_f_count - fPlaneLost
-    a.ePlaneInit = stage1.api_e_count
-    a.ePlaneNow  = stage1.api_e_count - ePlaneLost
+    o.fPlaneInit = stage1.api_f_count
+    o.fPlaneNow  = stage1.api_f_count - fPlaneLost
+    o.ePlaneInit = stage1.api_e_count
+    o.ePlaneNow  = stage1.api_e_count - ePlaneLost
   }
+
+  return preventNullObject(o)
 }
 
-function genreateEngagementInfo(packet, oursFleet, emenyFleet) {
+function generateEngagementInfo(packet, oursFleet, emenyFleet) {
   if (!(packet != null))
     return
 
-  const e = new EngagementInfo()
+  const o = new EngagementInfo()
 
   // Day combat
   const {api_formation, api_search} = packet
   if (api_formation != null) {
-    e.engagement = EngagementMap[api_formation[2]]
-    e.fFormation = FormationMap[api_formation[0]]
-    e.eFormation = FormationMap[api_formation[1]]
+    o.engagement = EngagementMap[api_formation[2]]
+    o.fFormation = FormationMap[api_formation[0]]
+    o.eFormation = FormationMap[api_formation[1]]
   }
   if (api_search != null) {
-    e.fDetection = DetectionMap[api_search[0]]
-    e.eDetection = DetectionMap[api_search[1]]
+    o.fDetection = DetectionMap[api_search[0]]
+    o.eDetection = DetectionMap[api_search[1]]
   }
   // Night combat
   const {api_touch_plane, api_flare_pos} = packet
   if (api_touch_plane != null) {
-    e.fContact = api_touch_plane[0]
-    e.eContact = api_touch_plane[1]
-    e.fFlare   =  oursFleet[api_flare_pos[0] - 1]
-    e.eFlare   = emenyFleet[api_flare_pos[1] - 1]
+    o.fContact = api_touch_plane[0]
+    o.eContact = api_touch_plane[1]
+    o.fFlare   =  oursFleet[api_flare_pos[0] - 1]
+    o.eFlare   = emenyFleet[api_flare_pos[1] - 1]
   }
   // Weaken mechanism
   const {api_boss_damaged, api_xal01} = packet
-  e.weakened = [api_boss_damaged, api_xal01].find(x => x != null)
+  o.weakened = [api_boss_damaged, api_xal01].find(x => x != null)
+
+  return preventNullObject(o)
 }
 
 function simulateAerialAttack(fleet, edam, ebak_flag, erai_flag, ecl_flag) {
@@ -410,10 +423,12 @@ function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku) 
     attacks = attacks.concat(simulateAerialAttack(enemyEscort, st3.api_edam, st3.api_ebak_flag, st3.api_erai_flag, st3.api_ecl_flag))
     attacks = attacks.concat(simulateAerialAttack(escortFleet, st3.api_fdam, st3.api_fbak_flag, st3.api_frai_flag, st3.api_fcl_flag))
   }
+  let aerial = generateAerialInfo(kouku, mainFleet, escortFleet)
   return new Stage({
-    type: StageType.Aerial,
+    type   : StageType.Aerial,
     attacks: attacks,
-    kouku: kouku,
+    aerial : aerial,
+    kouku  : kouku,
   })
 }
 
@@ -540,7 +555,7 @@ function simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet,
     }
   }
   let stage = simulateShelling(_oursFleet, null, _enemyFleet, null, hougeki, StageType.Night)
-  stage.api = _.pick(packet, 'api_touch_plane', 'api_flare_pos')
+  stage.engagement = generateEngagementInfo(packet, _oursFleet, _enemyFleet)
   return stage
 }
 
@@ -553,10 +568,12 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
     const st3 = kouku.api_stage3
     let fleet = [].concat(enemyFleet, enemyEscort || [])
     let attacks = simulateAerialAttack(fleet, st3.api_edam, st3.api_ebak_flag, st3.api_erai_flag, st3.api_ecl_flag)
+    let aerial = generateAerialInfo(kouku, null, null)
     return new Stage({
       type   : StageType.Support,
       subtype: SupportTypeMap[flag],
       attacks: attacks,
+      aerial : aerial,
       kouku  : kouku,
     })
   }
@@ -718,11 +735,11 @@ function simulateFleetNightMVP(stages) {
 }
 
 function getEngagementStage(packet) {
-  let picks = _.pick(packet, 'api_search', 'api_formation')
-  picks.gimmick = [packet.api_boss_damaged, packet.api_xal01].find(x => x != null)
-  return new Stage({
+  // This function is usable for day combat only.
+  const engagement = generateEngagementInfo(packet, null, null)
+  return engagement == null ? null : new Stage({
     type: StageType.Engagement,
-    api: picks,
+    engagement: engagement,
   })
 }
 
