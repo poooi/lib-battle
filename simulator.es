@@ -297,8 +297,8 @@ function simulateLandBase(enemyFleet, enemyEscort, kouku) {
   return stage
 }
 
+// https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E6%88%A6%E9%97%98%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
 function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
-  // https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E6%88%A6%E9%97%98%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
   function calStatus(fleet) {
     let shipNum = 0, sunkNum = 0, totalHP = 0, lostHP = 0
     let flagshipSunk = false, flagshipCritical  = false
@@ -352,6 +352,21 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
     return 'E'
   }
   return 'D'
+}
+
+// https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E9%95%B7%E8%B7%9D%E9%9B%A2%E7%A9%BA%E8%A5%B2%E6%88%A6%E3%81%A7%E3%81%AE%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
+function simulateAirRaidBattleRank(mainFleet, escortFleet) {
+  let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.initHP, 0)
+  let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.nowHP,  0)
+  let rate = (nowHPSum - initHPSum) / initHPSum * 100
+
+  if (rate <= 0) return 'SS'
+  if (rate < 10) return 'A'
+  if (rate < 20) return 'B'
+  if (rate < 50) return 'C'
+  if (rate < 80) return 'D'
+  // else
+  return 'E'
 }
 
 function simulateFleetMVP(fleet) {
@@ -423,6 +438,7 @@ class Simulator2 {
     // Stage
     this.stages  = []
     this._result = null
+    this._isAirRaid = false
     this._isNightOnlyMVP = false
   }
 
@@ -542,6 +558,21 @@ class Simulator2 {
         console.warn(`${path} expect fleet.type=1,2,3, but got ${fleetType}.`)
         // We Can't set fleet.type
       }
+    }
+
+
+    // MVP rule is special for combined fleet. It may be a kancolle bug.
+    if (path === '/kcsapi/api_req_combined_battle/midnight_battle') {
+      if (fleetType === 1 || fleetType === 2 || fleetType === 3) {
+        this._isNightOnlyMVP = true
+      }
+    }
+
+    // Rank rule is special for ld_airbattle.
+    if (['/kcsapi/api_req_sortie/ld_airbattle',
+         '/kcsapi/api_req_combined_battle/ld_airbattle',
+         ].includes(path)) {
+      this._isAirRaid = true
     }
 
 
@@ -698,13 +729,6 @@ class Simulator2 {
          '/kcsapi/api_req_combined_battle/ec_midnight_battle',
          ].includes(path)) {
 
-      // MVP rule is special for combined fleet. It may be a kancolle bug.
-      if (path === '/kcsapi/api_req_combined_battle/midnight_battle') {
-        if (fleetType === 1 || fleetType === 2 || fleetType === 3) {
-          this._isNightOnlyMVP = true
-        }
-      }
-
       // HACK: Add Engagement Stage to sp_midnight battle.
       // TODO: We need better solution
       if (path.includes('sp_midnight')) {
@@ -739,11 +763,12 @@ class Simulator2 {
     if (this._result != null)
       return this._result
 
-    const rank = simulateBattleRank(
-      this.mainFleet, this.escortFleet, this.enemyFleet, this.enemyEscort)
-    const mvp = this._isNightOnlyMVP ?
-      [0, simulateFleetNightMVP(this.stages)] :
-      [simulateFleetMVP(this.mainFleet), simulateFleetMVP(this.escortFleet)]
+    const rank = this._isAirRaid
+      ? simulateAirRaidBattleRank(this.mainFleet, this.escortFleet)
+      : simulateBattleRank(this.mainFleet, this.escortFleet, this.enemyFleet, this.enemyEscort)
+    const mvp = this._isNightOnlyMVP
+      ? [0, simulateFleetNightMVP(this.stages)]
+      : [simulateFleetMVP(this.mainFleet), simulateFleetMVP(this.escortFleet)]
 
     return new Result({rank, mvp})
   }
