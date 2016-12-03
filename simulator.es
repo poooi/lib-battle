@@ -132,6 +132,8 @@ export class EngagementInfo {
     this.eContact = opts.eContact  // api_touch_plane[1]
     this.fFlare   = opts.fFlare    // api_flare_pos[0] => Ship
     this.eFlare   = opts.eFlare    // api_flare_pos[1] => Ship
+    // Weaken Mechanism (Event Map)
+    this.weakened = this.weakened  // api_boss_damaged, api_xal01, ...
   }
 }
 
