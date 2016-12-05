@@ -1,7 +1,6 @@
 
 import _ from 'lodash'
 
-
 export class Stage {
   constructor(opts) {
     this.type    = opts.type      // StageType
@@ -87,10 +86,10 @@ export const ShipOwner = {
 
 export class AerialInfo {
   constructor(opts) {
-    this.fPlaneInit  = opts.fPlaneInit   // Init plane count of entire aerial combat
-    this.fPlaneNow   = opts.fPlaneNow    // Now  plane count of entire aerial combat
-    this.ePlaneInit  = opts.ePlaneInit   // ^^
-    this.ePlaneNow   = opts.ePlaneNow    // ^^
+    this.fPlaneInit  = opts.fPlaneInit   // Init plane count of entire aerial combat (Ours)
+    this.fPlaneNow   = opts.fPlaneNow    // Now  plane count of entire aerial combat (Ours)
+    this.ePlaneInit  = opts.ePlaneInit   // ^^ (Enemy)
+    this.ePlaneNow   = opts.ePlaneNow    // ^^ (Enemy)
     // Stage 1
     this.control     = opts.control      // AirControl
     this.fContact    = opts.fContact     // api_kouku.api_stage1.api_touch_plane[0]
@@ -182,8 +181,12 @@ export const Rank = {
   E : 'E',
 }
 
-
-const DayAttackTypeMap = {
+/**
+ * NOTICE
+ * Constants below are considered non-public API.
+**/
+// api_hougeki.api_at_type[] => ~
+export const DayAttackTypeMap = {
   0: AttackType.Normal,
   1: AttackType.Laser,
   2: AttackType.Double,
@@ -192,8 +195,8 @@ const DayAttackTypeMap = {
   5: AttackType.Primary_AP_CI,
   6: AttackType.Primary_Primary_CI,
 }
-
-const NightAttackTypeMap = {
+// api_hougeki.api_sp_list => ~
+export const NightAttackTypeMap = {
   0: AttackType.Normal,
   1: AttackType.Double,
   2: AttackType.Primary_Torpedo_CI,
@@ -201,16 +204,16 @@ const NightAttackTypeMap = {
   4: AttackType.Primary_Secondary_CI,
   5: AttackType.Primary_Primary_CI,
 }
-
-const AirControlMap = {
+// api_stage1.api_disp_seiku => ~
+export const AirControlMap = {
   0: AirControl.Parity,
   1: AirControl.Supremacy,
   2: AirControl.Superiority,
   3: AirControl.Incapability,
   4: AirControl.Denial,
 }
-
-const DetectionMap = {
+// api_search[] => ~
+export const DetectionMap = {
   1: Detection.Success,
   2: Detection.SuccessNR,
   3: Detection.FailureNR,
@@ -218,8 +221,8 @@ const DetectionMap = {
   5: Detection.SuccessNP,
   6: Detection.FailureNP,
 }
-
-const FormationMap = {
+// api_formation[0,1] => ~
+export const FormationMap = {
   1: Formation.Ahead,
   2: Formation.Double,
   3: Formation.Diamond,
@@ -230,21 +233,21 @@ const FormationMap = {
   13: Formation.CruisingDiamond,
   14: Formation.CruisingBattle,
 }
-
-const EngagementMap = {
+// api_formation[2] => ~
+export const EngagementMap = {
   1: Engagement.Parallel,
   2: Engagement.Headon,
   3: Engagement.TAdvantage,
   4: Engagement.TDisadvantage,
 }
-
-const SupportTypeMap = {
+// api_support_flag => ~
+export const SupportTypeMap = {
   1: StageType.Aerial,
   2: StageType.Shelling,
   3: StageType.Torpedo,
 }
-
-const BattleRankMap = {
+// api_win_rank => ~
+export const BattleRankMap = {
   'SS': Rank.SS,
   'S': Rank.S,
   'A': Rank.A,

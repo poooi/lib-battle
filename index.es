@@ -1,10 +1,7 @@
 
-import PacketManager from './packet'
-import Simulator from './simulator'
+export PacketManager from './packet'
+export Simulator from './simulator'
 
-// Compatibility: Export Models
-import * as M1 from './packet'
-import * as M2 from './simulator'
-const Models = {...M1, ...M2}
-
-export {Models, PacketManager, Simulator}
+import * as _MP from './packet'
+import * as _MS from './simulator'
+export const Models = {..._MP, ..._MS}
