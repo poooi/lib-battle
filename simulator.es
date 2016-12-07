@@ -353,34 +353,41 @@ function generateAerialInfo(kouku, mainFleet, escortFleet) {
   return preventNullObject(o)
 }
 
-function generateEngagementInfo(packet, oursFleet, emenyFleet) {
+function generateEngagementInfo(packet, oursFleet, emenyFleet, opts={}) {
   if (!(packet != null))
     return
+  opts = {...{engagement: false, night: false}, ...opts}
 
   const o = new EngagementInfo({})
 
-  // Day combat
-  const {api_formation, api_search} = packet
-  if (api_formation != null) {
-    o.engagement = EngagementMap[api_formation[2]]
-    o.fFormation = FormationMap[api_formation[0]]
-    o.eFormation = FormationMap[api_formation[1]]
+  if (opts.engagement) {
+    // Battle Engagement
+    const {api_formation, api_search} = packet
+    if (api_formation != null) {
+      o.engagement = EngagementMap[api_formation[2]]
+      o.fFormation = FormationMap[api_formation[0]]
+      o.eFormation = FormationMap[api_formation[1]]
+    }
+    if (api_search != null) {
+      o.fDetection = DetectionMap[api_search[0]]
+      o.eDetection = DetectionMap[api_search[1]]
+    }
+    // Weaken mechanism
+    const {api_boss_damaged, api_xal01} = packet
+    o.weakened = [api_boss_damaged, api_xal01].find(x => x != null)
   }
-  if (api_search != null) {
-    o.fDetection = DetectionMap[api_search[0]]
-    o.eDetection = DetectionMap[api_search[1]]
+  if (opts.night) {
+    // Night combat
+    const {api_touch_plane, api_flare_pos} = packet
+    if (api_touch_plane != null) {
+      o.fContact = api_touch_plane[0] > 0 ? api_touch_plane[0] : null
+      o.eContact = api_touch_plane[1] > 0 ? api_touch_plane[1] : null
+    }
+    if (api_flare_pos != null) {
+      o.fFlare   =  oursFleet[api_flare_pos[0] - 1]
+      o.eFlare   = emenyFleet[api_flare_pos[1] - 1]
+    }
   }
-  // Night combat
-  const {api_touch_plane, api_flare_pos} = packet
-  if (api_touch_plane != null) {
-    o.fContact = api_touch_plane[0] > 0 ? api_touch_plane[0] : null
-    o.eContact = api_touch_plane[1] > 0 ? api_touch_plane[1] : null
-    o.fFlare   =  oursFleet[api_flare_pos[0] - 1]
-    o.eFlare   = emenyFleet[api_flare_pos[1] - 1]
-  }
-  // Weaken mechanism
-  const {api_boss_damaged, api_xal01} = packet
-  o.weakened = [api_boss_damaged, api_xal01].find(x => x != null)
 
   return preventNullObject(o)
 }
@@ -557,7 +564,7 @@ function simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet,
     }
   }
   let stage = simulateShelling(_oursFleet, null, _enemyFleet, null, hougeki, StageType.Night)
-  stage.engagement = generateEngagementInfo(packet, _oursFleet, _enemyFleet)
+  stage.engagement = generateEngagementInfo(packet, _oursFleet, _enemyFleet, {night: true})
   return stage
 }
 
@@ -738,7 +745,7 @@ function simulateFleetNightMVP(stages) {
 
 function getEngagementStage(packet) {
   // This function is usable for day combat only.
-  const engagement = generateEngagementInfo(packet, null, null)
+  const engagement = generateEngagementInfo(packet, null, null, {engagement: true})
   return engagement == null ? null : new Stage({
     type: StageType.Engagement,
     engagement: engagement,
@@ -1069,7 +1076,6 @@ class Simulator2 {
     ].includes(path)) {
 
       // HACK: Add Engagement Stage to sp_midnight battle.
-      // TODO: We need better solution
       if (path.includes('sp_midnight')) {
         stages.push(getEngagementStage(packet))
       }
