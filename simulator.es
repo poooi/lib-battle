@@ -27,6 +27,7 @@ export const StageType = {
   Night  : "Night",   // Shelling, night combat
   Opening: "Opening", // Torpedo,  opening torpedo salvo
                       // Shelling, opening anti-sub
+  Assault: "Assault", // Aerial & LandBase, Jet Air Assault
 }
 
 export class Attack {
@@ -417,7 +418,7 @@ function simulateAerialAttack(fleet, edam, ebak_flag, erai_flag, ecl_flag) {
   return list
 }
 
-function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku) {
+function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku, assault=false) {
   if (!(kouku != null)) {
     return
   }
@@ -435,6 +436,7 @@ function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku) 
   let aerial = generateAerialInfo(kouku, mainFleet, escortFleet)
   return new Stage({
     type   : StageType.Aerial,
+    subtype: assault ? StageType.Assault : null,
     attacks: attacks,
     aerial : aerial,
     kouku  : kouku,
@@ -622,9 +624,12 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
   }
 }
 
-function simulateLandBase(enemyFleet, enemyEscort, kouku) {
+function simulateLandBase(enemyFleet, enemyEscort, kouku, assault=false) {
   let stage = simulateAerial(null, null, enemyFleet, enemyEscort, kouku)
-  stage.type = StageType.LandBase
+  if (stage != null) {
+    stage.type = StageType.LandBase
+    stage.subtype = assault ? StageType.Assault : null
+  }
   return stage
 }
 
@@ -936,9 +941,13 @@ class Simulator2 {
 
       // Engagement
       stages.push(getEngagementStage(packet))
+      // Land base air attack (assault)
+      stages.push(simulateLandBase(enemyFleet, enemyEscort, packet.api_air_base_injection, true))
       // Land base air attack
       for (const api_kouku of packet.api_air_base_attack || [])
         stages.push(simulateLandBase(enemyFleet, enemyEscort, api_kouku))
+      // Aerial Combat (assault)
+      stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_injection_kouku, true))
       // Aerial Combat
       stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_kouku))
       // Aerial Combat 2nd
