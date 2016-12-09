@@ -1100,8 +1100,8 @@ class Simulator2 {
     ].includes(path)) {
       let rank = BattleRankMap[packet.api_win_rank]
       if (rank === Rank.S) {
-        let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.initHP, 0)
-        let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.nowHP,  0)
+        let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.initHP : 0), 0)
+        let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.nowHP: 0),  0)
         if (nowHPSum >= initHPSum)
           rank = Rank.SS
       }
