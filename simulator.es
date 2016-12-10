@@ -652,8 +652,8 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
     return {
       num: shipNum,
       sunk: sunkNum,
-      rate: lostHP / totalHP * 100,
-      flagshipSunk, flagshipCritical,
+      rate: Math.floor(lostHP / totalHP * 100),
+      lostHP, flagshipSunk, flagshipCritical,
     }
   }
   const ours  = calStatus([].concat(mainFleet,  escortFleet))
@@ -661,7 +661,7 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
 
   if (ours.sunk === 0) {
     if (enemy.sunk === enemy.num) {
-      if (ours.rate <= 0)
+      if (ours.lostHP <= 0)
         return Rank.SS
       else
         return Rank.S
