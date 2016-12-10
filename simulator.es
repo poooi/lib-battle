@@ -1,6 +1,4 @@
 
-import _ from 'lodash'
-
 export class Stage {
   constructor(opts) {
     this.type    = opts.type      // StageType
@@ -738,10 +736,9 @@ function simulateFleetNightMVP(stages) {
         console.warn("Non-escort fleet ship attack in night stage", ship, attack)
     }
   }
-  // MVP index: m = main fleet, e = escort fleet
-  let m = 0
-  for (const i of _.range(0,6)) {
-    if (sum[i] > sum[m]) {
+  let m = 0  // MVP index
+  for (const [i, damage] of sum.entries()) {
+    if (damage > sum[m]) {
       m = i
     }
   }
@@ -813,7 +810,7 @@ class Simulator2 {
   _initEnemy(intl=0, api_ship_ke, api_eSlot, api_maxhps, api_nowhps, api_ship_lv) {
     if (!(api_ship_ke != null)) return
     let fleet = []
-    for (const i of _.range(1, 7)) {
+    for (const i of [1, 2, 3, 4, 5, 6]) {
       let id    = api_ship_ke[i]
       let slots = api_eSlot[i - 1] || []
       let ship, raw
