@@ -940,11 +940,11 @@ class Simulator2 {
       stages.push(getEngagementStage(packet))
       // Land base air attack (assault)
       stages.push(simulateLandBase(enemyFleet, enemyEscort, packet.api_air_base_injection, true))
+      // Aerial Combat (assault)
+      stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_injection_kouku, true))
       // Land base air attack
       for (const api_kouku of packet.api_air_base_attack || [])
         stages.push(simulateLandBase(enemyFleet, enemyEscort, api_kouku))
-      // Aerial Combat (assault)
-      stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_injection_kouku, true))
       // Aerial Combat
       stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_kouku))
       // Aerial Combat 2nd
