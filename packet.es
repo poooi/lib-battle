@@ -3,7 +3,7 @@ import EventEmitter from 'events'
 
 export class Battle {
   constructor(opts) {
-    this.version = "2.1"
+    this.version = opts.version ? opts.version : "2.1"
     this.type    = opts.type    // BattleType
     this.map     = opts.map     // [int, int, int] : 2-3-1
     this.desc    = opts.desc    // Description
