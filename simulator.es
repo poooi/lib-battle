@@ -112,8 +112,8 @@ export const AirControl = {
   Supremacy   : "Air Supremacy",
   Superiority : "Air Superiority",
   Parity      : "Air Parity",
-  Incapability: "Air Incapability",
   Denial      : "Air Denial",
+  Incapability: "Air Incapability",
 }
 
 export class EngagementInfo {
@@ -208,8 +208,8 @@ export const AirControlMap = {
   0: AirControl.Parity,
   1: AirControl.Supremacy,
   2: AirControl.Superiority,
-  3: AirControl.Incapability,
-  4: AirControl.Denial,
+  3: AirControl.Denial,
+  4: AirControl.Incapability,
 }
 // api_search[] => ~
 export const DetectionMap = {
