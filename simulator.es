@@ -1079,6 +1079,7 @@ class Simulator2 {
       '/kcsapi/api_req_combined_battle/midnight_battle',
       '/kcsapi/api_req_combined_battle/sp_midnight',
       '/kcsapi/api_req_combined_battle/ec_midnight_battle',
+      '!COMPAT/midnight_battle',
     ].includes(path)) {
 
       // HACK: Add Engagement Stage to sp_midnight battle.
