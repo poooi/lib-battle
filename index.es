@@ -1,5 +1,6 @@
 
-export PacketManager from './packet'
+export * from './packet'
+export * from './simulator'
 export Simulator from './simulator'
 
 import * as _MP from './packet'
