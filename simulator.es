@@ -690,8 +690,8 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
 
 function simulateAirRaidBattleRank(mainFleet, escortFleet) {
   // https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E9%95%B7%E8%B7%9D%E9%9B%A2%E7%A9%BA%E8%A5%B2%E6%88%A6%E3%81%A7%E3%81%AE%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
-  let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.initHP, 0)
-  let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + s.nowHP,  0)
+  let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.initHP : 0), 0)
+  let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.nowHP  : 0),  0)
   let rate = (initHPSum - nowHPSum) / initHPSum * 100
 
   if (rate <= 0) return Rank.SS
@@ -1099,7 +1099,7 @@ class Simulator2 {
       let rank = BattleRankMap[packet.api_win_rank]
       if (rank === Rank.S) {
         let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.initHP : 0), 0)
-        let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.nowHP: 0),  0)
+        let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.nowHP  : 0), 0)
         if (nowHPSum >= initHPSum)
           rank = Rank.SS
       }
