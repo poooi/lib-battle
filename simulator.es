@@ -826,7 +826,7 @@ class Simulator2 {
       let ship, raw
       let param = api_param[i - 1] || initParameter
       const kyouka = api_kyouka[i - 1] || initParameter
-      param = param.map((parameter, idx) => parameter + kyouka[idx] || 0)
+      param = param.map((parameter, idx) => parameter + (kyouka[idx] || 0))
       if (typeof id === "number" && id > 0) {
         if (this.usePoiAPI)
           raw = {
@@ -855,7 +855,7 @@ class Simulator2 {
     const path = packet.poi_path
 
     if (this.enemyFleet == null) {
-      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv, packet.api_eParam, packet.eKyouka)
+      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv, packet.api_eParam, packet.api_eKyouka)
       this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined, packet.api_eKyouka_combined)
     }
     // HACK: Only enemy carrier task force now.
