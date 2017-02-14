@@ -65,16 +65,17 @@ export class Ship {
     this.id    = opts.id    // int, $ships
     this.owner = opts.owner // ShipOwner
     this.pos   = opts.pos   // int, Position in fleet
-
-    this.maxHP     = opts.maxHP
-    this.nowHP     = opts.nowHP
-    this.initHP    = opts.nowHP
-    this.lostHP    = opts.lostHP || 0
-    this.damage    = opts.damage || 0  // Damage from this to others
-    this.items     = opts.items
-    this.useItem   = opts.useItem || null
-    this.parameter = opts.parameter || initParameter
-    // parameter for ATK, TORP, AA and AMOR
+ 
+    this.maxHP      = opts.maxHP
+    this.nowHP      = opts.nowHP
+    this.initHP     = opts.nowHP
+    this.lostHP     = opts.lostHP || 0
+    this.damage     = opts.damage || 0  // Damage from this to others
+    this.items      = opts.items
+    this.useItem    = opts.useItem || null
+    this.baseParam  = opts.baseParam || initParameter
+    this.finalParam = opts.finalParam
+    // parameter [ATK, TORP, AA, AMOR], finalParam for enemy is undefined if usePoiAPI is false
 
     this.raw = opts.raw
   }
@@ -796,19 +797,28 @@ class Simulator2 {
       if (rawShip != null) {
         let slots = rawShip.poi_slot.concat(rawShip.poi_slot_ex)
         const kyouka = rawShip.api_kyouka
-        const ATK = rawShip.api_houg[0] + kyouka[0]
-        const TORP = rawShip.api_raig[0] + kyouka[1]
-        const AA = rawShip.api_tyku[0] + kyouka[2]
-        const AMOR = rawShip.api_souk[0] + kyouka[3]
+        const baseParam =[
+          rawShip.api_houg[0] + kyouka[0],
+          rawShip.api_raig[0] + kyouka[1],
+          rawShip.api_tyku[0] + kyouka[2],
+          rawShip.api_souk[0] + kyouka[3],
+        ]
+        const finalParam = [
+          rawShip.api_karyoku[0],
+          rawShip.api_raisou[0],
+          rawShip.api_taiku[0],
+          rawShip.api_soukou[0],
+        ]
         fleet.push(new Ship({
-          id       : rawShip.api_ship_id,
-          owner    : ShipOwner.Ours,
-          pos      : intl + i + 1,
-          maxHP    : rawShip.api_maxhp,
-          nowHP    : rawShip.api_nowhp,
-          items    : slots.map(slot => slot != null ? slot.api_slotitem_id : null),
-          parameter: [ATK, TORP, AA, AMOR],
-          raw      : rawShip,
+          id        : rawShip.api_ship_id,
+          owner     : ShipOwner.Ours,
+          pos       : intl + i + 1,
+          maxHP     : rawShip.api_maxhp,
+          nowHP     : rawShip.api_nowhp,
+          items     : slots.map(slot => slot != null ? slot.api_slotitem_id : null),
+          baseParam : baseParam,
+          finalParam: finalParam,
+          raw       : rawShip,
         }))
       } else {
         fleet.push(null)
@@ -823,26 +833,37 @@ class Simulator2 {
     for (const i of [1, 2, 3, 4, 5, 6]) {
       let id    = api_ship_ke[i]
       let slots = api_eSlot[i - 1] || []
-      let ship, raw
-      let param = api_param[i - 1] || initParameter
+      let ship, raw, finalParam
+      const param = api_param[i - 1] || initParameter
       const kyouka = api_kyouka[i - 1] || initParameter
-      param = param.map((parameter, idx) => parameter + (kyouka[idx] || 0))
+      const baseParam = param.map((parameter, idx) => parameter + (kyouka[idx] || 0))
       if (typeof id === "number" && id > 0) {
-        if (this.usePoiAPI)
+        if (this.usePoiAPI) {
           raw = {
             api_ship_id: id,
             api_lv: api_ship_lv[i],
             poi_slot: slots.map(id => window.$slotitems[id]),
           }
+          finalParam = slots.reduce((bonus, id) => {
+            const item = window.$slotitems[id] || {}
+            return [
+              bonus[0] + (item.api_houg || 0),
+              bonus[1] + (item.api_raig || 0),
+              bonus[2] + (item.api_tyku || 0),
+              bonus[3] + (item.api_souk || 0),
+            ]
+          }, baseParam)
+        }
         ship = new Ship({
-          id       : id,
-          owner    : ShipOwner.Enemy,
-          pos      : intl + i,
-          maxHP    : api_maxhps[i + 6],
-          nowHP    : api_nowhps[i + 6],
-          items    : [],  // We dont care
-          parameter: param,
-          raw      : raw,
+          id        : id,
+          owner     : ShipOwner.Enemy,
+          pos       : intl + i,
+          maxHP     : api_maxhps[i + 6],
+          nowHP     : api_nowhps[i + 6],
+          items     : [],  // We dont care
+          baseParam : baseParam,
+          finalParam: finalParam,
+          raw       : raw,
         })
       }
       fleet.push(ship)
