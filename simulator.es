@@ -66,13 +66,15 @@ export class Ship {
     this.owner = opts.owner // ShipOwner
     this.pos   = opts.pos   // int, Position in fleet
 
-    this.maxHP   = opts.maxHP
-    this.nowHP   = opts.nowHP
-    this.initHP  = opts.nowHP
-    this.lostHP  = opts.lostHP || 0
-    this.damage  = opts.damage || 0  // Damage from this to others
-    this.items   = opts.items
-    this.useItem = opts.useItem || null
+    this.maxHP     = opts.maxHP
+    this.nowHP     = opts.nowHP
+    this.initHP    = opts.nowHP
+    this.lostHP    = opts.lostHP || 0
+    this.damage    = opts.damage || 0  // Damage from this to others
+    this.items     = opts.items
+    this.useItem   = opts.useItem || null
+    this.parameter = opts.parameter || initParameter
+    // parameter for ATK, TORP, AA and AMOR
 
     this.raw = opts.raw
   }
@@ -259,6 +261,8 @@ export const BattleRankMap = {
 const HalfSunkNumber = [  // 7~12 is guessed.
   0, 1, 1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8,
 ]
+
+const initParameter = [0, 0, 0, 0]
 
 function useItem(ship) {
   if (ship.owner === ShipOwner.Ours && ship.nowHP <= 0 && ship.items != null)
@@ -791,14 +795,20 @@ class Simulator2 {
     for (let [i, rawShip] of rawFleet.entries()) {
       if (rawShip != null) {
         let slots = rawShip.poi_slot.concat(rawShip.poi_slot_ex)
+        const kyouka = rawShip.api_kyouka
+        const ATK = rawShip.api_houg[0] + kyouka[0]
+        const TORP = rawShip.api_raig[0] + kyouka[1]
+        const AA = rawShip.api_tyku[0] + kyouka[2]
+        const AMOR = rawShip.api_souk[0] + kyouka[3]
         fleet.push(new Ship({
-          id   : rawShip.api_ship_id,
-          owner: ShipOwner.Ours,
-          pos  : intl + i + 1,
-          maxHP: rawShip.api_maxhp,
-          nowHP: rawShip.api_nowhp,
-          items: slots.map(slot => slot != null ? slot.api_slotitem_id : null),
-          raw  : rawShip,
+          id       : rawShip.api_ship_id,
+          owner    : ShipOwner.Ours,
+          pos      : intl + i + 1,
+          maxHP    : rawShip.api_maxhp,
+          nowHP    : rawShip.api_nowhp,
+          items    : slots.map(slot => slot != null ? slot.api_slotitem_id : null),
+          parameter: [ATK, TORP, AA, AMOR],
+          raw      : rawShip,
         }))
       } else {
         fleet.push(null)
@@ -807,13 +817,16 @@ class Simulator2 {
     return fleet
   }
 
-  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_maxhps, api_nowhps, api_ship_lv) {
+  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_maxhps, api_nowhps, api_ship_lv, api_param=[], api_kyouka=[]) {
     if (!(api_ship_ke != null)) return
     let fleet = []
     for (const i of [1, 2, 3, 4, 5, 6]) {
       let id    = api_ship_ke[i]
       let slots = api_eSlot[i - 1] || []
       let ship, raw
+      let param = api_param[i - 1] || initParameter
+      const kyouka = api_kyouka[i - 1] || initParameter
+      param = param.map((parameter, idx) => parameter + kyouka[idx] || 0)
       if (typeof id === "number" && id > 0) {
         if (this.usePoiAPI)
           raw = {
@@ -822,13 +835,14 @@ class Simulator2 {
             poi_slot: slots.map(id => window.$slotitems[id]),
           }
         ship = new Ship({
-          id   : id,
-          owner: ShipOwner.Enemy,
-          pos  : intl + i,
-          maxHP: api_maxhps[i + 6],
-          nowHP: api_nowhps[i + 6],
-          items: [],  // We dont care
-          raw  : raw,
+          id       : id,
+          owner    : ShipOwner.Enemy,
+          pos      : intl + i,
+          maxHP    : api_maxhps[i + 6],
+          nowHP    : api_nowhps[i + 6],
+          items    : [],  // We dont care
+          parameter: param,
+          raw      : raw,
         })
       }
       fleet.push(ship)
@@ -841,8 +855,8 @@ class Simulator2 {
     const path = packet.poi_path
 
     if (this.enemyFleet == null) {
-      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv)
-      this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined)
+      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv, packet.api_eParam, packet.eKyouka)
+      this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined, packet.api_eKyouka_combined)
     }
     // HACK: Only enemy carrier task force now.
     let enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
