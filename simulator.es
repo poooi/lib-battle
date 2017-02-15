@@ -65,7 +65,7 @@ export class Ship {
     this.id    = opts.id    // int, $ships
     this.owner = opts.owner // ShipOwner
     this.pos   = opts.pos   // int, Position in fleet
- 
+
     this.maxHP      = opts.maxHP
     this.nowHP      = opts.nowHP
     this.initHP     = opts.nowHP
@@ -73,7 +73,7 @@ export class Ship {
     this.damage     = opts.damage || 0  // Damage from this to others
     this.items      = opts.items
     this.useItem    = opts.useItem || null
-    this.baseParam  = opts.baseParam || initParameter
+    this.baseParam  = opts.baseParam || [0, 0, 0, 0]
     this.finalParam = opts.finalParam
     // parameter [ATK, TORP, AA, AMOR], finalParam for enemy is undefined if usePoiAPI is false
 
@@ -262,8 +262,6 @@ export const BattleRankMap = {
 const HalfSunkNumber = [  // 7~12 is guessed.
   0, 1, 1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8,
 ]
-
-const initParameter = [0, 0, 0, 0]
 
 function useItem(ship) {
   if (ship.owner === ShipOwner.Ours && ship.nowHP <= 0 && ship.items != null)
@@ -834,8 +832,8 @@ class Simulator2 {
       let id    = api_ship_ke[i]
       let slots = api_eSlot[i - 1] || []
       let ship, raw, finalParam
-      const param = api_param[i - 1] || initParameter
-      const kyouka = api_kyouka[i - 1] || initParameter
+      const param = api_param[i - 1] || [0, 0, 0, 0]
+      const kyouka = api_kyouka[i - 1] || [0, 0, 0, 0]
       const baseParam = param.map((parameter, idx) => parameter + (kyouka[idx] || 0))
       if (typeof id === "number" && id > 0) {
         if (this.usePoiAPI) {
