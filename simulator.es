@@ -825,16 +825,14 @@ class Simulator2 {
     return fleet
   }
 
-  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_maxhps, api_nowhps, api_ship_lv, api_param=[], api_kyouka=[]) {
+  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_maxhps, api_nowhps, api_ship_lv, api_param=[]) {
     if (!(api_ship_ke != null)) return
     let fleet = []
     for (const i of [1, 2, 3, 4, 5, 6]) {
       let id    = api_ship_ke[i]
       let slots = api_eSlot[i - 1] || []
       let ship, raw, finalParam
-      const param = api_param[i - 1] || [0, 0, 0, 0]
-      const kyouka = api_kyouka[i - 1] || [0, 0, 0, 0]
-      const baseParam = param.map((parameter, idx) => parameter + (kyouka[idx] || 0))
+      const baseParam = api_param[i - 1] || [0, 0, 0, 0]
       if (typeof id === "number" && id > 0) {
         if (this.usePoiAPI) {
           raw = {
@@ -874,8 +872,8 @@ class Simulator2 {
     const path = packet.poi_path
 
     if (this.enemyFleet == null) {
-      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv, packet.api_eParam, packet.api_eKyouka)
-      this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined, packet.api_eKyouka_combined)
+      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv, packet.api_eParam)
+      this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined)
     }
     // HACK: Only enemy carrier task force now.
     let enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
