@@ -73,9 +73,10 @@ export class Ship {
     this.damage     = opts.damage || 0  // Damage from this to others
     this.items      = opts.items
     this.useItem    = opts.useItem || null
-    this.baseParam  = opts.baseParam || [0, 0, 0, 0]
+    this.baseParam  = opts.baseParam
     this.finalParam = opts.finalParam
-    // parameter [ATK, TORP, AA, AMOR], finalParam for enemy is undefined if usePoiAPI is false
+    // parameter = [FRP, TORP, AA, AMOR]
+    // if !usePoiAPI, baseParam for friend ship and finalParam for enemy ship is undefined
 
     this.raw = opts.raw
   }
@@ -794,14 +795,20 @@ class Simulator2 {
     for (let [i, rawShip] of rawFleet.entries()) {
       if (rawShip != null) {
         let slots = rawShip.poi_slot.concat(rawShip.poi_slot_ex)
+        let baseParam, finalParam
         const kyouka = rawShip.api_kyouka
-        const baseParam =[
-          rawShip.api_houg[0] + kyouka[0],
-          rawShip.api_raig[0] + kyouka[1],
-          rawShip.api_tyku[0] + kyouka[2],
-          rawShip.api_souk[0] + kyouka[3],
-        ]
-        const finalParam = [
+        if (this.usePoiAPI) {
+          const $ship = window.$ships[rawShip.api_ship_id]
+          if (typeof $ship != 'undefined') {
+            baseParam = [
+              $ship.api_houg[0] + kyouka[0],
+              $ship.api_raig[0] + kyouka[1],
+              $ship.api_tyku[0] + kyouka[2],
+              $ship.api_souk[0] + kyouka[3],
+            ]
+          }
+        }
+        finalParam = [
           rawShip.api_karyoku[0],
           rawShip.api_raisou[0],
           rawShip.api_taiku[0],
