@@ -76,7 +76,7 @@ export class Ship {
     this.baseParam  = opts.baseParam
     this.finalParam = opts.finalParam
     // parameter = [FRP, TORP, AA, AMOR]
-    // if !usePoiAPI, baseParam for friend ship and finalParam for enemy ship is undefined
+    // if !usePoiAPI, baseParam and finalParam are undefined
 
     this.raw = opts.raw
   }
@@ -807,13 +807,13 @@ class Simulator2 {
               $ship.api_souk[0] + kyouka[3],
             ]
           }
+          finalParam = [
+            rawShip.api_karyoku[0],
+            rawShip.api_raisou[0],
+            rawShip.api_taiku[0],
+            rawShip.api_soukou[0],
+          ]
         }
-        finalParam = [
-          rawShip.api_karyoku[0],
-          rawShip.api_raisou[0],
-          rawShip.api_taiku[0],
-          rawShip.api_soukou[0],
-        ]
         fleet.push(new Ship({
           id        : rawShip.api_ship_id,
           owner     : ShipOwner.Ours,
@@ -838,10 +838,7 @@ class Simulator2 {
     for (const i of [1, 2, 3, 4, 5, 6]) {
       let id    = api_ship_ke[i]
       let slots = api_eSlot[i - 1] || []
-      let ship, raw, finalParam
-      const param = api_param[i - 1] || [0, 0, 0, 0]
-      const kyouka = api_kyouka[i - 1] || [0, 0, 0, 0]
-      const baseParam = param.map((parameter, idx) => parameter + (kyouka[idx] || 0))
+      let ship, raw, finalParam, baseParam
       if (typeof id === "number" && id > 0) {
         if (this.usePoiAPI) {
           raw = {
@@ -849,6 +846,9 @@ class Simulator2 {
             api_lv: api_ship_lv[i],
             poi_slot: slots.map(id => window.$slotitems[id]),
           }
+          const param = api_param[i - 1] || [0, 0, 0, 0]
+          const kyouka = api_kyouka[i - 1] || [0, 0, 0, 0]
+          baseParam = param.map((parameter, idx) => parameter + (kyouka[idx] || 0))
           finalParam = slots.reduce((bonus, id) => {
             const item = window.$slotitems[id] || {}
             return [
