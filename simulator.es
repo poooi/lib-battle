@@ -383,8 +383,10 @@ function generateEngagementInfo(packet, oursFleet, emenyFleet, opts={}) {
     // Night combat
     const {api_touch_plane, api_flare_pos} = packet
     if (api_touch_plane != null) {
-      o.fContact = api_touch_plane[0] > 0 ? api_touch_plane[0] : null
-      o.eContact = api_touch_plane[1] > 0 ? api_touch_plane[1] : null
+      // KANCOLLE BUG: api-touch_plane elements is string
+      const plane = api_touch_plane.map(x => Number(x))
+      o.fContact = plane[0] > 0 ? plane[0] : null
+      o.eContact = plane[1] > 0 ? plane[1] : null
     }
     if (api_flare_pos != null) {
       o.fFlare   =  oursFleet[api_flare_pos[0] - 1]
