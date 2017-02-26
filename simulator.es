@@ -763,6 +763,10 @@ function getEngagementStage(packet) {
 
 class Simulator2 {
   constructor(fleet, opts={}) {
+    // When no using poi API:
+    //   enemyShip.raw == null
+    this.usePoiAPI = opts.usePoiAPI
+
     this.fleetType    = fleet.type || 0
     this.mainFleet    = this._initFleet(fleet.main, 0)
     this.escortFleet  = this._initFleet(fleet.escort, 6)
@@ -770,10 +774,6 @@ class Simulator2 {
     this.landBaseAirCorps = fleet.LBAC
     this.enemyFleet   = null  // Assign at first packet
     this.enemyEscort  = null  // ^
-
-    // When no using poi API:
-    //   enemyShip.raw == null
-    this.usePoiAPI = opts.usePoiAPI
 
     // Stage
     this.stages  = []
