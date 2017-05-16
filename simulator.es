@@ -289,7 +289,9 @@ function damageShip(fromShip, toShip, damage) {
   toShip.nowHP  -= damage
   toShip.lostHP += damage
   let item   = useItem(toShip)
-  toShip.useItem = item
+  if (item) {
+    toShip.useItem = item
+  }
   let toHP   = toShip.nowHP
   // `toShip.*` is updated in place
   return {fromHP, toHP, item}
