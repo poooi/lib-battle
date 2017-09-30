@@ -9,7 +9,6 @@ module.exports = {
     'plugin:import/errors',
     'plugin:import/warnings',
   ],
-  'installedESLint': true,
   'parser': 'babel-eslint',
   'plugins': [
     'import',
