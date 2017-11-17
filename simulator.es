@@ -456,11 +456,13 @@ function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, 
   const list = []
   for (let [i, t] of erai.entries()) {
     let fromShip, toShip
+    const mainFleetRange = mainFleet.length
+    const enemyFleetRange = enemyFleet.length
     if (i < 0 || t < 0) continue
-    if (i < 6) fromShip = mainFleet[i]
-    else        fromShip = escortFleet[i - 6]
-    if (t < 6) toShip = enemyFleet[t]
-    else        toShip = enemyEscort[t - 6]
+    if (i < mainFleetRange) fromShip = mainFleet[i]
+    else        fromShip = escortFleet[i - mainFleetRange]
+    if (t < enemyFleetRange) toShip = enemyFleet[t]
+    else        toShip = enemyEscort[t - enemyFleetRange]
     let damage = Math.floor(eydam[i])
     let hit = (ecl[i] === 2 ? HitType.Critical : (ecl[i] === 1 ? HitType.Hit : HitType.Miss))
     let {fromHP, toHP, item} = damageShip(fromShip, toShip, damage)
@@ -502,6 +504,8 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
   }
   const isNight = (subtype == StageType.Night)
   const list = []
+  const mainFleetRange = mainFleet.length
+  const enemyFleetRange = enemyFleet.length
   for (let [i, at] of hougeki.api_at_list.entries()) {
     if (at === -1) continue
     let df, fromEnemy  // Declare ahead
@@ -509,17 +513,17 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
     if (hougeki.api_at_eflag != null) {
       fromEnemy = hougeki.api_at_eflag[i] === 1
     } else {
-      fromEnemy = df < 6
-      if (at >= 6) at -= 6
-      if (df >= 6) df -= 6
+      fromEnemy = df < mainFleetRange
+      if (at >= mainFleetRange) at -= mainFleetRange
+      if (df >= mainFleetRange) df -= mainFleetRange
     }
     let fromShip, toShip
     if (fromEnemy) {
-      fromShip = at < 7 ? enemyFleet[at] : enemyEscort[at - 6]
-      toShip   = df < 7 ? mainFleet[df]  : escortFleet[df - 6]
+      fromShip = at < enemyFleetRange ? enemyFleet[at] : enemyEscort[at - enemyFleetRange]
+      toShip   = df < mainFleetRange ? mainFleet[df]  : escortFleet[df - mainFleetRange]
     } else {
-      fromShip = at < 7 ? mainFleet[at]  : escortFleet[at - 6]
-      toShip   = df < 7 ? enemyFleet[df] : enemyEscort[df - 6]
+      fromShip = at < mainFleetRange ? mainFleet[at]  : escortFleet[at - mainFleetRange]
+      toShip   = df < enemyFleetRange ? enemyFleet[df] : enemyEscort[df - enemyFleetRange]
     }
 
     let attackType = isNight ? NightAttackTypeMap[hougeki.api_sp_list[i]] : DayAttackTypeMap[hougeki.api_at_type[i]]
@@ -596,12 +600,13 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
   if (flag === 2 || flag === 3) {
     const hourai = support.api_support_hourai
     let attacks = []
+    const enemyFleetRange = enemyFleet.length
     for (let [i, damage] of hourai.api_damage.entries()) {
       let toShip
-      if (0 <= i && i < 6)
+      if (0 <= i && i < enemyFleetRange)
         toShip = enemyFleet[i]
-      if (6 <= i && i <= 11)
-        toShip = enemyEscort[i - 6]
+      if (enemyFleetRange <= i && enemyEscort) // TANAKA: api_damage.length = 7 with 6 ships
+        toShip = enemyEscort[i - enemyFleetRange]
       if (toShip == null)
         continue
       damage = Math.floor(damage)
@@ -838,7 +843,8 @@ class Simulator2 {
   _initEnemy(intl=0, api_ship_ke, api_eSlot, api_e_maxhps, api_e_nowhps, api_ship_lv, api_param=[]) {
     if (!(api_ship_ke != null)) return
     let fleet = []
-    for (const i of [0, 1, 2, 3, 4, 5, 6]) {
+    const range = [...new Array(api_ship_ke.length).keys()]
+    for (const i of range) {
       let id    = api_ship_ke[i]
       let slots = api_eSlot[i] || []
       let ship, raw, baseParam, finalParam
@@ -883,7 +889,7 @@ class Simulator2 {
 
     if (this.enemyFleet == null) {
       this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_e_maxhps, packet.api_e_nowhps, packet.api_ship_lv, packet.api_eParam)
-      this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_e_maxhps_combined, packet.api_e_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined)
+      this.enemyEscort = this._initEnemy(packet.api_ship_ke.length, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_e_maxhps_combined, packet.api_e_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined)
     }
     // HACK: Only enemy carrier task force now.
     let enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
