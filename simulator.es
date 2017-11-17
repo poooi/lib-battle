@@ -457,10 +457,10 @@ function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, 
   for (let [i, t] of erai.entries()) {
     let fromShip, toShip
     if (i < 0 || t < 0) continue
-    if (i <= 6) fromShip = mainFleet[i]
-    else        fromShip = escortFleet[i - 7]
-    if (t <= 6) toShip = enemyFleet[t]
-    else        toShip = enemyEscort[t - 7]
+    if (i < 6) fromShip = mainFleet[i]
+    else        fromShip = escortFleet[i - 6]
+    if (t < 6) toShip = enemyFleet[t]
+    else        toShip = enemyEscort[t - 6]
     let damage = Math.floor(eydam[i])
     let hit = (ecl[i] === 2 ? HitType.Critical : (ecl[i] === 1 ? HitType.Hit : HitType.Miss))
     let {fromHP, toHP, item} = damageShip(fromShip, toShip, damage)
@@ -509,17 +509,17 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
     if (hougeki.api_at_eflag != null) {
       fromEnemy = hougeki.api_at_eflag[i] === 1
     } else {
-      fromEnemy = df < 7
-      if (at >= 7) at -= 7
-      if (df >= 7) df -= 7
+      fromEnemy = df < 6
+      if (at >= 6) at -= 6
+      if (df >= 6) df -= 6
     }
     let fromShip, toShip
     if (fromEnemy) {
-      fromShip = at < 7 ? enemyFleet[at] : enemyEscort[at - 7]
-      toShip   = df < 7 ? mainFleet[df]  : escortFleet[df - 7]
+      fromShip = at < 7 ? enemyFleet[at] : enemyEscort[at - 6]
+      toShip   = df < 7 ? mainFleet[df]  : escortFleet[df - 6]
     } else {
-      fromShip = at < 7 ? mainFleet[at]  : escortFleet[at - 7]
-      toShip   = df < 7 ? enemyFleet[df] : enemyEscort[df - 7]
+      fromShip = at < 7 ? mainFleet[at]  : escortFleet[at - 6]
+      toShip   = df < 7 ? enemyFleet[df] : enemyEscort[df - 6]
     }
 
     let attackType = isNight ? NightAttackTypeMap[hougeki.api_sp_list[i]] : DayAttackTypeMap[hougeki.api_at_type[i]]
@@ -598,10 +598,10 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
     let attacks = []
     for (let [i, damage] of hourai.api_damage.entries()) {
       let toShip
-      if (0 <= i && i <= 6)
+      if (0 <= i && i < 6)
         toShip = enemyFleet[i]
-      if (7 <= i && i <= 13)
-        toShip = enemyEscort[i - 7]
+      if (6 <= i && i <= 11)
+        toShip = enemyEscort[i - 6]
       if (toShip == null)
         continue
       damage = Math.floor(damage)
@@ -737,7 +737,7 @@ function simulateFleetNightMVP(stages) {
       if (ship == null || ship.owner != ShipOwner.Ours)
         continue
       const {pos} = ship
-      if (7 <= pos && pos <= 13)
+      if (6 <= pos && pos <= 11)
         sum[pos - 7] += damage.reduce((x, y) => x + y, 0)
       else
         console.warn("Non-escort fleet ship attack in night stage", ship, attack)
