@@ -408,7 +408,7 @@ function simulateAerialAttack(fleet, edam, ebak_flag, erai_flag, ecl_flag) {
     if ((damage < 0) || (ebak_flag[i] <= 0 && erai_flag[i] <= 0))
       continue
     damage = Math.floor(damage)
-    let toShip = fleet[i - 1]
+    let toShip = fleet[i]
     let hit = (ecl_flag[i] === 1 ? HitType.Critical : (damage > 0 ? HitType.Hit : HitType.Miss))
     let {fromHP, toHP, item} = damageShip(null, toShip, damage)
     list.push(new Attack({
@@ -456,10 +456,10 @@ function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, 
   const list = []
   for (let [i, t] of erai.entries()) {
     let fromShip, toShip
-    if (i <= 0 || t <= 0) continue
-    if (i <= 6) fromShip = mainFleet[i - 1]
+    if (i < 0 || t < 0) continue
+    if (i <= 6) fromShip = mainFleet[i]
     else        fromShip = escortFleet[i - 7]
-    if (t <= 6) toShip = enemyFleet[t - 1]
+    if (t <= 6) toShip = enemyFleet[t]
     else        toShip = enemyEscort[t - 7]
     let damage = Math.floor(eydam[i])
     let hit = (ecl[i] === 2 ? HitType.Critical : (ecl[i] === 1 ? HitType.Hit : HitType.Miss))
@@ -505,22 +505,21 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
   for (let [i, at] of hougeki.api_at_list.entries()) {
     if (at === -1) continue
     let df, fromEnemy  // Declare ahead
-    at =  at - 1                        // Attacker
-    df = hougeki.api_df_list[i][0] - 1  // Defender
+    df = hougeki.api_df_list[i][0] // Defender
     if (hougeki.api_at_eflag != null) {
       fromEnemy = hougeki.api_at_eflag[i] === 1
     } else {
-      fromEnemy = df < 6
-      if (at >= 6) at -= 6
-      if (df >= 6) df -= 6
+      fromEnemy = df < 7
+      if (at >= 7) at -= 7
+      if (df >= 7) df -= 7
     }
     let fromShip, toShip
     if (fromEnemy) {
-      fromShip = at < 6 ? enemyFleet[at] : enemyEscort[at - 6]
-      toShip   = df < 6 ? mainFleet[df]  : escortFleet[df - 6]
+      fromShip = at < 7 ? enemyFleet[at] : enemyEscort[at - 7]
+      toShip   = df < 7 ? mainFleet[df]  : escortFleet[df - 7]
     } else {
-      fromShip = at < 6 ? mainFleet[at]  : escortFleet[at - 6]
-      toShip   = df < 6 ? enemyFleet[df] : enemyEscort[df - 6]
+      fromShip = at < 7 ? mainFleet[at]  : escortFleet[at - 7]
+      toShip   = df < 7 ? enemyFleet[df] : enemyEscort[df - 7]
     }
 
     let attackType = isNight ? NightAttackTypeMap[hougeki.api_sp_list[i]] : DayAttackTypeMap[hougeki.api_at_type[i]]
@@ -599,9 +598,9 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
     let attacks = []
     for (let [i, damage] of hourai.api_damage.entries()) {
       let toShip
-      if (1 <= i && i <= 6)
-        toShip = enemyFleet[i - 1]
-      if (7 <= i && i <= 12)
+      if (0 <= i && i <= 6)
+        toShip = enemyFleet[i]
+      if (7 <= i && i <= 13)
         toShip = enemyEscort[i - 7]
       if (toShip == null)
         continue
@@ -738,7 +737,7 @@ function simulateFleetNightMVP(stages) {
       if (ship == null || ship.owner != ShipOwner.Ours)
         continue
       const {pos} = ship
-      if (7 <= pos && pos <= 12)
+      if (7 <= pos && pos <= 13)
         sum[pos - 7] += damage.reduce((x, y) => x + y, 0)
       else
         console.warn("Non-escort fleet ship attack in night stage", ship, attack)
@@ -836,12 +835,12 @@ class Simulator2 {
     return fleet
   }
 
-  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_maxhps, api_nowhps, api_ship_lv, api_param=[]) {
+  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_e_maxhps, api_e_nowhps, api_ship_lv, api_param=[]) {
     if (!(api_ship_ke != null)) return
     let fleet = []
-    for (const i of [1, 2, 3, 4, 5, 6]) {
+    for (const i of [0, 1, 2, 3, 4, 5, 6]) {
       let id    = api_ship_ke[i]
-      let slots = api_eSlot[i - 1] || []
+      let slots = api_eSlot[i] || []
       let ship, raw, baseParam, finalParam
       if (typeof id === "number" && id > 0) {
         if (this.usePoiAPI) {
@@ -850,7 +849,7 @@ class Simulator2 {
             api_lv: api_ship_lv[i],
             poi_slot: slots.map(id => window.$slotitems[id]),
           }
-          baseParam = api_param[i - 1] || [0, 0, 0, 0]
+          baseParam = api_param[i] || [0, 0, 0, 0]
           finalParam = slots.reduce((bonus, id) => {
             const item = window.$slotitems[id] || {}
             return [
@@ -865,8 +864,8 @@ class Simulator2 {
           id        : id,
           owner     : ShipOwner.Enemy,
           pos       : intl + i,
-          maxHP     : api_maxhps[i + 6],
-          nowHP     : api_nowhps[i + 6],
+          maxHP     : api_e_maxhps[i],
+          nowHP     : api_e_nowhps[i],
           items     : [],  // We dont care
           baseParam : baseParam,
           finalParam: finalParam,
@@ -883,8 +882,8 @@ class Simulator2 {
     const path = packet.poi_path
 
     if (this.enemyFleet == null) {
-      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_maxhps, packet.api_nowhps, packet.api_ship_lv, packet.api_eParam)
-      this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_maxhps_combined, packet.api_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined)
+      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_e_maxhps, packet.api_e_nowhps, packet.api_ship_lv, packet.api_eParam)
+      this.enemyEscort = this._initEnemy(6, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_e_maxhps_combined, packet.api_e_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined)
     }
     // HACK: Only enemy carrier task force now.
     let enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
