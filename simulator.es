@@ -585,7 +585,7 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
   if (!(support != null && flag != null)) {
     return
   }
-  if (flag === 1) {
+  if (flag === 1 || flag === 4) {
     const kouku = support.api_support_airatack
     const st3 = kouku.api_stage3
     let fleet = [].concat(enemyFleet, enemyEscort || [])
