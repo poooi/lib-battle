@@ -312,6 +312,8 @@ function generateAerialInfo(kouku, mainFleet, escortFleet) {
   if (!(kouku != null))
     return
 
+  const mainFleetRange = mainFleet.length
+
   const stage1 = kouku.api_stage1
   const stage2 = kouku.api_stage2
   const o = new AerialInfo({})
@@ -335,8 +337,8 @@ function generateAerialInfo(kouku, mainFleet, escortFleet) {
     const airfire = kouku.api_stage2.api_air_fire
     if (airfire != null) {
       let ship = null, idx = airfire.api_idx
-      if (0 <= idx && idx <= 5)  ship = mainFleet[idx]
-      if (6 <= idx && idx <= 11) ship = escortFleet[idx - 6]
+      if (0 <= idx && idx <= mainFleetRange)  ship = mainFleet[idx]
+      if (mainFleetRange <= idx) ship = escortFleet[idx - mainFleetRange]
       o.aaciKind = airfire.api_kind
       o.aaciShip = ship
       o.aaciItems = airfire.api_use_items
