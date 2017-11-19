@@ -577,7 +577,8 @@ function simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet,
       _enemyFleet = enemyEscort
     }
   }
-  let stage = simulateShelling(_oursFleet, null, _enemyFleet, null, hougeki, StageType.Night)
+  let stage = simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, hougeki, StageType.Night)
+  // FIXME: check if api_touch_plane and api_flare_pos also change base
   stage.engagement = generateEngagementInfo(packet, _oursFleet, _enemyFleet, {night: true})
   return stage
 }
