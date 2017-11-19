@@ -659,7 +659,7 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
       sunkNum += (nowHP <= 0) ? 1 : 0
       totalHP += initHP
       lostHP  += (initHP - nowHP)
-      if (ship.pos === 1) {
+      if (ship.pos === 0) {
         flagshipSunk     = (nowHP <= 0)
         flagshipCritical = (nowHP * 4 <= maxHP)
       }
@@ -694,7 +694,7 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
   if (2 * enemy.rate > 5 * ours.rate) {
     return Rank.B
   }
-  if (9 * enemy.rate > 10 * ours.rate) {
+  if (10 * enemy.rate > 9 * ours.rate) {
     return Rank.C
   }
   if (ours.sunk > 0 && (ours.num - ours.sunk) === 1) {
