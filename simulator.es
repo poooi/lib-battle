@@ -561,6 +561,9 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
 }
 
 function simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, hougeki, packet) {
+  if (!hougeki) {
+    return
+  }
   let _oursFleet  = fleetType === 0 ? mainFleet  : escortFleet
   let _enemyFleet = enemyType === 0 ? enemyFleet : enemyEscort
   if (packet.api_active_deck != null) {
@@ -985,6 +988,7 @@ class Simulator2 {
       '/kcsapi/api_req_combined_battle/ec_battle',
       '/kcsapi/api_req_combined_battle/each_battle',
       '/kcsapi/api_req_combined_battle/each_battle_water',
+      '/kcsapi/api_req_combined_battle/ec_night_to_day',
     ].includes(path)) {
 
       // Engagement
@@ -1030,15 +1034,18 @@ class Simulator2 {
       '/kcsapi/api_req_combined_battle/sp_midnight',
       '/kcsapi/api_req_combined_battle/ec_midnight_battle',
       '!COMPAT/midnight_battle',
+      '/kcsapi/api_req_combined_battle/ec_night_to_day',
     ].includes(path)) {
 
       // HACK: Add Engagement Stage to sp_midnight battle.
-      if (path.includes('sp_midnight')) {
+      if (path.includes('sp_midnight') || path.includes('ec_night_to_day')) {
         stages.push(getEngagementStage(packet))
       }
 
       // Night Combat
       stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
+      stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki1, packet))
+      stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki2, packet))
     }
 
     if ([  // Battle Result
