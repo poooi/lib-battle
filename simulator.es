@@ -1042,8 +1042,13 @@ class Simulator2 {
         stages.push(getEngagementStage(packet))
       }
 
+      // Night to day support
+      stages.push(simulateSupport(enemyFleet, enemyEscort, packet.api_n_support_info, packet.api_n_support_flag))
+
       // Night Combat
       stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
+
+      // Night to day combat
       stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki1, packet))
       stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki2, packet))
     }
