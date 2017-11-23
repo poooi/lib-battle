@@ -502,14 +502,14 @@ function simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigek
 }
 
 function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, hougeki, subtype) {
-  if (!hougeki || !hougeki.api_at_list) {
+  if (!(hougeki != null)) {
     return
   }
   const isNight = (subtype == StageType.Night)
   const list = []
   const mainFleetRange = mainFleet.length
   const enemyFleetRange = enemyFleet.length
-  for (let [i, at] of hougeki.api_at_list.entries()) {
+  for (let [i, at] of (hougeki.api_at_list || []).entries()) {
     if (at === -1) continue
     let df, fromEnemy  // Declare ahead
     df = hougeki.api_df_list[i][0] // Defender
