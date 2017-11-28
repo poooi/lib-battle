@@ -896,17 +896,75 @@ class Simulator2 {
     if (packet == null) return
     const path = packet.poi_path
 
-    if (this.enemyFleet == null) {
+    this.prepare(packet, path)
+    this.assert(packet, path)
+
+    // Day Battle
+    if (['/kcsapi/api_req_practice/battle',
+         '/kcsapi/api_req_sortie/battle',
+         '/kcsapi/api_req_sortie/airbattle',
+         '/kcsapi/api_req_sortie/ld_airbattle',
+         '/kcsapi/api_req_combined_battle/battle',
+         '/kcsapi/api_req_combined_battle/battle_water',
+         '/kcsapi/api_req_combined_battle/airbattle',
+         '/kcsapi/api_req_combined_battle/ld_airbattle',
+         '/kcsapi/api_req_combined_battle/ec_battle',
+         '/kcsapi/api_req_combined_battle/each_battle',
+         '/kcsapi/api_req_combined_battle/each_battle_water',
+    ].includes(path)) {
+      this.prcsDay(packet, path)
+    }
+    // Night Battle
+    if (['/kcsapi/api_req_practice/midnight_battle',
+         '/kcsapi/api_req_battle_midnight/battle',
+         '/kcsapi/api_req_battle_midnight/sp_midnight',
+         '/kcsapi/api_req_combined_battle/midnight_battle',
+         '/kcsapi/api_req_combined_battle/sp_midnight',
+         '/kcsapi/api_req_combined_battle/ec_midnight_battle',
+         '!COMPAT/midnight_battle',
+    ].includes(path)) {
+      this.prcsNight(packet, path)
+    }
+    // Night to Day
+    if (['/kcsapi/api_req_combined_battle/ec_night_to_day'].includes(path)) {
+      this.prcsNight(packet, path)
+      this.prcsDay(packet, path)
+    }
+    // Battle Result
+    if (['/kcsapi/api_req_practice/battle_result',
+         '/kcsapi/api_req_sortie/battleresult',
+         '/kcsapi/api_req_combined_battle/battleresult',
+    ].includes(path)) {
+      this.prcsResult(packet, path)
+    }
+  }
+
+  prepare(packet, path) {
+    const { fleetType, enemyFleet } = this
+    if (enemyFleet == null) {
       this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_e_maxhps, packet.api_e_nowhps, packet.api_ship_lv, packet.api_eParam)
       this.enemyEscort = this._initEnemy(packet.api_ship_ke.length, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_e_maxhps_combined, packet.api_e_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined)
     }
     // HACK: Only enemy carrier task force now.
-    let enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
+    this.enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
 
-    let {fleetType, mainFleet, escortFleet, enemyFleet, enemyEscort} = this
-    let {stages} = this
+    // MVP rule is special for combined fleet. It may be a kancolle bug.
+    if (['/kcsapi/api_req_combined_battle/midnight_battle',
+    ].includes(path)) {
+      if (fleetType === 1 || fleetType === 2 || fleetType === 3) {
+        this._isNightOnlyMVP = true
+      }
+    }
+    // Rank rule is special for ld_airbattle.
+    if (['/kcsapi/api_req_sortie/ld_airbattle',
+         '/kcsapi/api_req_combined_battle/ld_airbattle',
+    ].includes(path)) {
+      this._isAirRaid = true
+    }
+  }
 
-
+  assert(packet, path) {
+    const { fleetType } = this
     /** Assert fleet.type with API Path **/
     // Normal Fleet
     if (['/kcsapi/api_req_practice/battle',
@@ -920,7 +978,7 @@ class Simulator2 {
     ].includes(path)) {
       if (!(fleetType === 0)) {
         console.warn(`${path} expect fleet.type=0, but got ${fleetType}.`)
-        fleetType = 0
+        this.fleetType = 0
       }
     }
     // Carrier Task Force & Transport Escort
@@ -930,7 +988,7 @@ class Simulator2 {
       if (!(fleetType === 1 || fleetType === 3)) {
         console.warn(`${path} expect fleet.type=1,3, but got ${fleetType}.`)
         // HACK: Currently CTF & TE act the same
-        fleetType = 1
+        this.fleetType = 1
       }
     }
     // Surface Task Force
@@ -939,7 +997,7 @@ class Simulator2 {
     ].includes(path)) {
       if (!(fleetType === 2)) {
         console.warn(`${path} expect fleet.type=2, but got ${fleetType}.`)
-        fleetType = 2
+        this.fleetType = 2
       }
     }
     // Combined Fleet
@@ -958,123 +1016,81 @@ class Simulator2 {
     ].includes(path)) {
       if (!(fleetType === 0 || fleetType === 1 || fleetType === 2 || fleetType === 3)) {
         console.warn(`${path} expect fleet.type=0,1,2,3, but got ${fleetType}.`)
-        // We Can't set fleet.type
+        // We can't detemine fleet.type
       }
     }
+  }
 
+  prcsDay(packet, path) {
+    const { mainFleet, escortFleet, enemyFleet, enemyEscort } = this
+    const { stages } = this
 
-    // MVP rule is special for combined fleet. It may be a kancolle bug.
-    if (['/kcsapi/api_req_combined_battle/midnight_battle',
-    ].includes(path)) {
-      if (fleetType === 1 || fleetType === 2 || fleetType === 3) {
-        this._isNightOnlyMVP = true
-      }
-    }
-    // Rank rule is special for ld_airbattle.
-    if (['/kcsapi/api_req_sortie/ld_airbattle',
-         '/kcsapi/api_req_combined_battle/ld_airbattle',
-    ].includes(path)) {
-      this._isAirRaid = true
-    }
+    // Engagement
+    stages.push(getEngagementStage(packet))
+    // Land base air attack (assault)
+    stages.push(simulateLandBase(enemyFleet, enemyEscort, packet.api_air_base_injection, true))
+    // Aerial Combat (assault)
+    stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_injection_kouku, true))
+    // Land base air attack
+    for (const api_kouku of packet.api_air_base_attack || [])
+      stages.push(simulateLandBase(enemyFleet, enemyEscort, api_kouku))
+    // Aerial Combat
+    stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_kouku))
+    // Aerial Combat 2nd
+    stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_kouku2))
+    // Expedition Support Fire
+    stages.push(simulateSupport(enemyFleet, enemyEscort, packet.api_support_info, packet.api_support_flag))
 
+    // Opening Anti-Sub
+    stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_opening_taisen,
+      StageType.Opening))
+    // Opening Torpedo Salvo
+    stages.push(simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_opening_atack,
+      StageType.Opening))
+    // Shelling (Main), 1st
+    stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki1,
+      StageType.Main))
+    // Shelling (Escort)
+    stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki2,
+      StageType.Escort))
+    // Closing Torpedo Salvo
+    stages.push(simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_raigeki))
+    // Shelling (Main), 2nd
+    stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki3,
+      StageType.Main))
+  }
 
-    /** Simulate by Stage Order **/
-    // Day Battle Stages
-    if (['/kcsapi/api_req_practice/battle',
-         '/kcsapi/api_req_sortie/battle',
-         '/kcsapi/api_req_sortie/airbattle',
-         '/kcsapi/api_req_sortie/ld_airbattle',
-         '/kcsapi/api_req_combined_battle/battle',
-         '/kcsapi/api_req_combined_battle/battle_water',
-         '/kcsapi/api_req_combined_battle/airbattle',
-         '/kcsapi/api_req_combined_battle/ld_airbattle',
-         '/kcsapi/api_req_combined_battle/ec_battle',
-         '/kcsapi/api_req_combined_battle/each_battle',
-         '/kcsapi/api_req_combined_battle/each_battle_water',
-         '/kcsapi/api_req_combined_battle/ec_night_to_day',
-    ].includes(path)) {
+  prcsNight(packet, path) {
+    const { stages, fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort } = this
 
-      // Engagement
+    // HACK: Add Engagement Stage to Night-Open Battle.
+    if (path.includes('sp_midnight') || path.includes('ec_night_to_day')) {
       stages.push(getEngagementStage(packet))
-      // Land base air attack (assault)
-      stages.push(simulateLandBase(enemyFleet, enemyEscort, packet.api_air_base_injection, true))
-      // Aerial Combat (assault)
-      stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_injection_kouku, true))
-      // Land base air attack
-      for (const api_kouku of packet.api_air_base_attack || [])
-        stages.push(simulateLandBase(enemyFleet, enemyEscort, api_kouku))
-      // Aerial Combat
-      stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_kouku))
-      // Aerial Combat 2nd
-      stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_kouku2))
-      // Expedition Support Fire
-      stages.push(simulateSupport(enemyFleet, enemyEscort, packet.api_support_info, packet.api_support_flag))
-
-      // Opening Anti-Sub
-      stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_opening_taisen,
-        StageType.Opening))
-      // Opening Torpedo Salvo
-      stages.push(simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_opening_atack,
-        StageType.Opening))
-      // Shelling (Main), 1st
-      stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki1,
-        StageType.Main))
-      // Shelling (Escort)
-      stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki2,
-        StageType.Escort))
-      // Closing Torpedo Salvo
-      stages.push(simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_raigeki))
-      // Shelling (Main), 2nd
-      stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_hougeki3,
-        StageType.Main))
     }
+    // Night to Day Support
+    stages.push(simulateSupport(enemyFleet, enemyEscort, packet.api_n_support_info, packet.api_n_support_flag))
+    // Night Combat
+    stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
+    // Night to Day Combat
+    stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki1, packet))
+    stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki2, packet))
+  }
 
-    // Night Battle Stages
-    if (['/kcsapi/api_req_practice/midnight_battle',
-         '/kcsapi/api_req_battle_midnight/battle',
-         '/kcsapi/api_req_battle_midnight/sp_midnight',
-         '/kcsapi/api_req_combined_battle/midnight_battle',
-         '/kcsapi/api_req_combined_battle/sp_midnight',
-         '/kcsapi/api_req_combined_battle/ec_midnight_battle',
-         '/kcsapi/api_req_combined_battle/ec_night_to_day',
-         '!COMPAT/midnight_battle',
-    ].includes(path)) {
-
-      // HACK: Add Engagement Stage to sp_midnight battle.
-      if (path.includes('sp_midnight') || path.includes('ec_night_to_day')) {
-        stages.push(getEngagementStage(packet))
-      }
-
-      // Night to day support
-      stages.push(simulateSupport(enemyFleet, enemyEscort, packet.api_n_support_info, packet.api_n_support_flag))
-
-      // Night Combat
-      stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
-
-      // Night to day combat
-      stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki1, packet))
-      stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki2, packet))
+  prcsResult(packet, path) {
+    const { mainFleet, escortFleet } = this
+    let rank = BattleRankMap[packet.api_win_rank]
+    if (rank === Rank.S) {
+      const initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.initHP : 0), 0)
+      const nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.nowHP  : 0), 0)
+      if (nowHPSum >= initHPSum)
+        rank = Rank.SS
     }
-
-    // Battle Result
-    if (['/kcsapi/api_req_practice/battle_result',
-         '/kcsapi/api_req_sortie/battleresult',
-         '/kcsapi/api_req_combined_battle/battleresult',
-    ].includes(path)) {
-      let rank = BattleRankMap[packet.api_win_rank]
-      if (rank === Rank.S) {
-        let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.initHP : 0), 0)
-        let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.nowHP  : 0), 0)
-        if (nowHPSum >= initHPSum)
-          rank = Rank.SS
-      }
-      this._result = new Result({
-        rank: rank,
-        mvp : [(packet.api_mvp || 0) - 1, (packet.api_mvp_combined || 0) - 1],
-        getShip: (packet.api_get_ship || {}).api_ship_id,
-        getItem: (packet.api_get_useitem || {}).api_useitem_id,
-      })
-    }
+    this._result = new Result({
+      rank: rank,
+      mvp : [(packet.api_mvp || 0) - 1, (packet.api_mvp_combined || 0) - 1],
+      getShip: (packet.api_get_ship || {}).api_ship_id,
+      getItem: (packet.api_get_useitem || {}).api_useitem_id,
+    })
   }
 
   get result() {
