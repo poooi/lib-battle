@@ -794,6 +794,7 @@ class Simulator2 {
     this.stages  = []
     this._result = null
     this._isAirRaid = false
+    this._isEngaged = false
     this._isNightOnlyMVP = false
   }
 
@@ -899,6 +900,11 @@ class Simulator2 {
     this.prepare(packet, path)
     this.assert(packet, path)
 
+    // Engagement
+    if (this._isEngaged === false) {
+      this._isEngaged = true
+      this.stages.push(getEngagementStage(packet))
+    }
     // Day Battle
     if (['/kcsapi/api_req_practice/battle',
          '/kcsapi/api_req_sortie/battle',
@@ -1025,8 +1031,6 @@ class Simulator2 {
     const { mainFleet, escortFleet, enemyFleet, enemyEscort } = this
     const { stages } = this
 
-    // Engagement
-    stages.push(getEngagementStage(packet))
     // Land base air attack (assault)
     stages.push(simulateLandBase(enemyFleet, enemyEscort, packet.api_air_base_injection, true))
     // Aerial Combat (assault)
@@ -1063,10 +1067,6 @@ class Simulator2 {
   prcsNight(packet, path) {
     const { stages, fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort } = this
 
-    // HACK: Add Engagement Stage to Night-Open Battle.
-    if (path.includes('sp_midnight') || path.includes('ec_night_to_day')) {
-      stages.push(getEngagementStage(packet))
-    }
     // Night to Day Support
     stages.push(simulateSupport(enemyFleet, enemyEscort, packet.api_n_support_info, packet.api_n_support_flag))
     // Night Combat
