@@ -12,7 +12,6 @@ module.exports = {
   'parser': 'babel-eslint',
   'plugins': [
     'import',
-    'react',
   ],
   'rules': {
     'comma-dangle': ['error', 'always-multiline'],
@@ -23,12 +22,11 @@ module.exports = {
     'no-unused-vars': ['warn', {'args': 'none'}],
     'semi': ['error', 'never'],
     'unicode-bom': 'error',
-    'react/prop-types': 'off',
   },
   'settings': {
     'import/resolver': {
       'node': {
-        'extensions': ['.js', '.jsx', '.es', '.coffee', '.cjsx'],
+        'extensions': ['.js', '.es'],
         'paths': [__dirname],
       },
     },
