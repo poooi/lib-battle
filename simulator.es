@@ -561,28 +561,24 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
 }
 
 function simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, hougeki, packet) {
-  if (!hougeki) {
-    return
-  }
-  let _oursFleet  = fleetType === 0 ? mainFleet  : escortFleet
-  let _enemyFleet = enemyType === 0 ? enemyFleet : enemyEscort
-  if (packet.api_active_deck != null) {
-    if (packet.api_active_deck[0] === 1) {
-      _oursFleet = mainFleet
-    }
-    if (packet.api_active_deck[0] === 2) {
-      _oursFleet = escortFleet
-    }
-    if (packet.api_active_deck[1] === 1) {
-      _enemyFleet = enemyFleet
-    }
-    if (packet.api_active_deck[1] === 2) {
-      _enemyFleet = enemyEscort
-    }
-  }
-  let stage = simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, hougeki, StageType.Night)
-  // FIXME: check if api_touch_plane and api_flare_pos also change base
+  const stage = simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, hougeki, StageType.Night)
   if (stage) {
+    let _oursFleet  = fleetType === 0 ? mainFleet  : escortFleet
+    let _enemyFleet = enemyType === 0 ? enemyFleet : enemyEscort
+    if (packet.api_active_deck != null) {
+      if (packet.api_active_deck[0] === 1) {
+        _oursFleet = mainFleet
+      }
+      if (packet.api_active_deck[0] === 2) {
+        _oursFleet = escortFleet
+      }
+      if (packet.api_active_deck[1] === 1) {
+        _enemyFleet = enemyFleet
+      }
+      if (packet.api_active_deck[1] === 2) {
+        _enemyFleet = enemyEscort
+      }
+    }
     stage.engagement = generateEngagementInfo(packet, _oursFleet, _enemyFleet, {night: true})
   }
   return stage
@@ -1170,11 +1166,11 @@ class Simulator2 {
 
     // Night to Day Support
     stages.push(simulateSupport(enemyFleet, enemyEscort, packet.api_n_support_info, packet.api_n_support_flag))
+    // Night to Day Combat
+    stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_n_hougeki1, StageType.Night))
+    stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_n_hougeki2, StageType.Night))
     // Night Combat
     stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
-    // Night to Day Combat
-    stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki1, packet))
-    stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_n_hougeki2, packet))
   }
 
   prcsResult(packet, path) {
