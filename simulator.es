@@ -85,6 +85,7 @@ export class Ship {
 export const ShipOwner = {
   Ours : "Ours",
   Enemy: "Enemy",
+  Friend: "Friend",
 }
 
 export class AerialInfo {
@@ -785,6 +786,7 @@ class Simulator2 {
     this.landBaseAirCorps = fleet.LBAC
     this.enemyFleet   = null  // Assign at first packet
     this.enemyEscort  = null  // ^
+    this.friendFleet  = null // NPC Friend fleet support
 
     // Stage
     this.stages  = []
@@ -846,7 +848,7 @@ class Simulator2 {
     return fleet
   }
 
-  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_e_maxhps, api_e_nowhps, api_ship_lv, api_param=[]) {
+  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_e_maxhps, api_e_nowhps, api_ship_lv, api_param=[], owner=ShipOwner.Enemy) {
     if (!(api_ship_ke != null)) return
     let fleet = []
     const range = [...new Array(api_ship_ke.length).keys()]
@@ -874,7 +876,7 @@ class Simulator2 {
         }
         ship = new Ship({
           id        : id,
-          owner     : ShipOwner.Enemy,
+          owner     : owner,
           pos       : intl + i,
           maxHP     : api_e_maxhps[i],
           nowHP     : api_e_nowhps[i],
@@ -949,6 +951,20 @@ class Simulator2 {
     }
     // HACK: Only enemy carrier task force now.
     this.enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
+
+    if (packet.api_friendly_info != null) {
+      const info = packet.api_friendly_info
+      this.friendFleet = this._initEnemy(
+        0,
+        info.api_ship_id,
+        info.api_Slot,
+        info.api_maxhps,
+        info.api_nowhps,
+        info.api_ship_lv,
+        info.api_Param,
+        ShipOwner.Friend,
+      )
+    }
 
     // MVP rule is special for combined fleet. It may be a kancolle bug.
     if (['/kcsapi/api_req_combined_battle/midnight_battle',
@@ -1162,13 +1178,23 @@ class Simulator2 {
   }
 
   prcsNight(packet, path) {
-    const { stages, fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort } = this
+    const { stages, fleetType, mainFleet, escortFleet, friendFleet, enemyType, enemyFleet, enemyEscort } = this
 
     // Night to Day Support
     stages.push(simulateSupport(enemyFleet, enemyEscort, packet.api_n_support_info, packet.api_n_support_flag))
     // Night to Day Combat
     stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_n_hougeki1, StageType.Night))
     stages.push(simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_n_hougeki2, StageType.Night))
+
+    // NPC Friend Support
+    stages.push(simulateShelling(
+      friendFleet,
+      null,
+      enemyFleet,
+      enemyEscort,
+      (packet.api_friendly_battle || {}).api_hougeki,
+      StageType.Night,
+    ))
     // Night Combat
     stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
   }
