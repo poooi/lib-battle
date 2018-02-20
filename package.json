@@ -10,10 +10,13 @@
     "babel-preset-es2017-node7": "^0.5.2",
     "babel-preset-stage-0": "^6.5.0",
     "eslint": "^2.12.0",
-    "eslint-plugin-import": "^1.8.1"
+    "eslint-plugin-import": "^1.8.1",
+    "poi-util-transpile": "^8.0.0"
   },
   "scripts": {
-    "postpublish": "cnpm sync poi-lib-battle"
+    "reset": "git clean -f && git checkout .",
+    "prepack": "poi-util-transpile --sm --replace",
+    "postpublish": "npm run reset"
   },
   "repository": {
     "type": "git",
