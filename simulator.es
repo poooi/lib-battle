@@ -46,6 +46,8 @@ export const AttackType = {
   Normal: "Normal",             // 通常攻撃
   Laser : "Laser",              // レーザー攻撃
   Double: "Double",             // 連撃
+  Nelson_Touch: "Nelson",       // ネルソンタッチ
+  Carrier_CI:           "CVCI", // 空母カットイン
   Primary_Secondary_CI: "PSCI", // カットイン(主砲/副砲)
   Primary_Radar_CI    : "PRCI", // カットイン(主砲/電探)
   Primary_AP_CI       : "PACI", // カットイン(主砲/徹甲)
@@ -53,6 +55,11 @@ export const AttackType = {
   Primary_Torpedo_CI  : "PTCI", // カットイン(主砲/魚雷)
   Torpedo_Torpedo_CI  : "TTCI", // カットイン(魚雷/魚雷)
 }
+
+export const MultiTargetAttackType = [
+  AttackType.Nelson_Touch,
+  AttackType.Laser,
+]
 
 export const HitType = {
   Miss    : 0,
@@ -199,6 +206,8 @@ export const DayAttackTypeMap = {
   4: AttackType.Primary_Radar_CI,
   5: AttackType.Primary_AP_CI,
   6: AttackType.Primary_Primary_CI,
+  7: AttackType.Carrier_CI,
+  100: AttackType.Nelson_Touch,
 }
 // api_hougeki.api_sp_list => ~
 export const NightAttackTypeMap = {
@@ -208,6 +217,7 @@ export const NightAttackTypeMap = {
   3: AttackType.Torpedo_Torpedo_CI,
   4: AttackType.Primary_Secondary_CI,
   5: AttackType.Primary_Primary_CI,
+  100: AttackType.Nelson_Touch,
 }
 // api_stage1.api_disp_seiku => ~
 export const AirControlMap = {
@@ -512,47 +522,90 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
   const enemyFleetRange = enemyFleet.length
   for (let [i, at] of (hougeki.api_at_list || []).entries()) {
     if (at === -1) continue
-    let df, fromEnemy  // Declare ahead
-    df = hougeki.api_df_list[i][0] // Defender
-    if (hougeki.api_at_eflag != null) {
-      fromEnemy = hougeki.api_at_eflag[i] === 1
-    } else {
-      fromEnemy = df < mainFleetRange
-      if (at >= mainFleetRange) at -= mainFleetRange
-      if (df >= mainFleetRange) df -= mainFleetRange
-    }
-    let fromShip, toShip
-    if (fromEnemy) {
-      fromShip = at < enemyFleetRange ? enemyFleet[at] : enemyEscort[at - enemyFleetRange]
-      toShip   = df < mainFleetRange ? mainFleet[df]  : escortFleet[df - mainFleetRange]
-    } else {
-      fromShip = at < mainFleetRange ? mainFleet[at]  : escortFleet[at - mainFleetRange]
-      toShip   = df < enemyFleetRange ? enemyFleet[df] : enemyEscort[df - enemyFleetRange]
-    }
-
     let attackType = isNight ? NightAttackTypeMap[hougeki.api_sp_list[i]] : DayAttackTypeMap[hougeki.api_at_type[i]]
-    let damage = []
-    let damageTotal = 0
-    for (let dmg of hougeki.api_damage[i]) {
-      if (dmg < 0) dmg = 0
-      dmg = Math.floor(dmg)
-      damage.push(dmg)
-      damageTotal += dmg
+    if (!MultiTargetAttackType.includes(attackType)) {
+      let df, fromEnemy  // Declare ahead
+      df = hougeki.api_df_list[i][0] // Defender
+      if (hougeki.api_at_eflag != null) {
+        fromEnemy = hougeki.api_at_eflag[i] === 1
+      } else {
+        fromEnemy = df < mainFleetRange
+        if (at >= mainFleetRange) at -= mainFleetRange
+        if (df >= mainFleetRange) df -= mainFleetRange
+      }
+      let fromShip, toShip
+      if (fromEnemy) {
+        fromShip = at < enemyFleetRange ? enemyFleet[at] : enemyEscort[at - enemyFleetRange]
+        toShip   = df < mainFleetRange ? mainFleet[df]  : escortFleet[df - mainFleetRange]
+      } else {
+        fromShip = at < mainFleetRange ? mainFleet[at]  : escortFleet[at - mainFleetRange]
+        toShip   = df < enemyFleetRange ? enemyFleet[df] : enemyEscort[df - enemyFleetRange]
+      }
+
+      let damage = []
+      let damageTotal = 0
+      for (let dmg of hougeki.api_damage[i]) {
+        if (dmg < 0) dmg = 0
+        dmg = Math.floor(dmg)
+        damage.push(dmg)
+        damageTotal += dmg
+      }
+      let hit = []
+      for (const cl of hougeki.api_cl_list[i])
+        hit.push(cl === 2 ? HitType.Critical : (cl === 1 ? HitType.Hit : HitType.Miss))
+      let {fromHP, toHP, item} = damageShip(fromShip, toShip, damageTotal)
+      list.push(new Attack({
+        type    : attackType,
+        fromShip: fromShip,
+        toShip  : toShip,
+        damage  : damage,
+        hit     : hit,
+        fromHP  : fromHP,
+        toHP    : toHP,
+        useItem : item,
+      }))
+    } else {
+      for (let j = 0; j < hougeki.api_df_list[i].length; j++) {
+        let df, fromEnemy  // Declare ahead
+        df = hougeki.api_df_list[i][j] // Defender
+        at = j * 2 // Attacker
+        if (hougeki.api_at_eflag != null) {
+          fromEnemy = hougeki.api_at_eflag[i] === 1
+        } else {
+          fromEnemy = df < mainFleetRange
+          if (at >= mainFleetRange) at -= mainFleetRange
+          if (df >= mainFleetRange) df -= mainFleetRange
+        }
+        let fromShip, toShip
+        if (fromEnemy) {
+          fromShip = at < enemyFleetRange ? enemyFleet[at] : enemyEscort[at - enemyFleetRange]
+          toShip   = df < mainFleetRange ? mainFleet[df]  : escortFleet[df - mainFleetRange]
+        } else {
+          fromShip = at < mainFleetRange ? mainFleet[at]  : escortFleet[at - mainFleetRange]
+          toShip   = df < enemyFleetRange ? enemyFleet[df] : enemyEscort[df - enemyFleetRange]
+        }
+
+        let damage = []
+        let dmg = hougeki.api_damage[i][j]
+        if (dmg < 0) dmg = 0
+        dmg = Math.floor(dmg)
+        damage.push(dmg)
+        let hit = []
+        let cl = hougeki.api_cl_list[i][j]
+        hit.push(cl === 2 ? HitType.Critical : (cl === 1 ? HitType.Hit : HitType.Miss))
+        let {fromHP, toHP, item} = damageShip(fromShip, toShip, dmg)
+        list.push(new Attack({
+          type    : attackType,
+          fromShip: fromShip,
+          toShip  : toShip,
+          damage  : damage,
+          hit     : hit,
+          fromHP  : fromHP,
+          toHP    : toHP,
+          useItem : item,
+        }))
+      }
     }
-    let hit = []
-    for (const cl of hougeki.api_cl_list[i])
-      hit.push(cl === 2 ? HitType.Critical : (cl === 1 ? HitType.Hit : HitType.Miss))
-    let {fromHP, toHP, item} = damageShip(fromShip, toShip, damageTotal)
-    list.push(new Attack({
-      type    : attackType,
-      fromShip: fromShip,
-      toShip  : toShip,
-      damage  : damage,
-      hit     : hit,
-      fromHP  : fromHP,
-      toHP    : toHP,
-      useItem : item,
-    }))
   }
   return new Stage({
     type: StageType.Shelling,
