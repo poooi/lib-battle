@@ -1012,7 +1012,8 @@ class Simulator2 {
     const { fleetType, enemyFleet } = this
     if (enemyFleet == null) {
       this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_e_maxhps, packet.api_e_nowhps, packet.api_ship_lv, packet.api_eParam)
-      this.enemyEscort = this._initEnemy(packet.api_ship_ke.length, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_e_maxhps_combined, packet.api_e_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined)
+      if (packet.api_ship_ke)
+        this.enemyEscort = this._initEnemy(packet.api_ship_ke.length, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_e_maxhps_combined, packet.api_e_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined)
     }
     // HACK: Only enemy carrier task force now.
     this.enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
