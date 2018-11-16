@@ -47,6 +47,7 @@ export const AttackType = {
   Laser : "Laser",              // レーザー攻撃
   Double: "Double",             // 連撃
   Nelson_Touch: "Nelson",       // ネルソンタッチ
+  Nagato_Punch: "Nagato",       // 一斉射かッ…胸が熱いな！
   Carrier_CI:           "CVCI", // 空母カットイン
   Primary_Secondary_CI: "PSCI", // カットイン(主砲/副砲)
   Primary_Radar_CI    : "PRCI", // カットイン(主砲/電探)
@@ -56,10 +57,17 @@ export const AttackType = {
   Torpedo_Torpedo_CI  : "TTCI", // カットイン(魚雷/魚雷)
 }
 
-export const MultiTargetAttackType = [
+export const MultiTargetAttackType = new Set([
+  AttackType.Nagato_Punch,
   AttackType.Nelson_Touch,
   AttackType.Laser,
-]
+])
+
+export const MultiTargetAttackOrder = {
+  [AttackType.Nagato_Punch]: [0, 0, 1],
+  [AttackType.Nelson_Touch]: [0, 2, 4],
+  [AttackType.Laser]: [0, 0, 0],
+}
 
 export const HitType = {
   Miss    : 0,
@@ -208,6 +216,7 @@ export const DayAttackTypeMap = {
   6: AttackType.Primary_Primary_CI,
   7: AttackType.Carrier_CI,
   100: AttackType.Nelson_Touch,
+  101: AttackType.Nagato_Punch,
 }
 // api_hougeki.api_sp_list => ~
 export const NightAttackTypeMap = {
@@ -218,6 +227,7 @@ export const NightAttackTypeMap = {
   4: AttackType.Primary_Secondary_CI,
   5: AttackType.Primary_Primary_CI,
   100: AttackType.Nelson_Touch,
+  101: AttackType.Nagato_Punch,
 }
 // api_stage1.api_disp_seiku => ~
 export const AirControlMap = {
@@ -520,10 +530,11 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
   const list = []
   const mainFleetRange = mainFleet.length
   const enemyFleetRange = enemyFleet.length
-  for (let [i, at] of (hougeki.api_at_list || []).entries()) {
-    if (at === -1) continue
+  for (let [i, attacker] of (hougeki.api_at_list || []).entries()) {
+    if (attacker === -1) continue
     let attackType = isNight ? NightAttackTypeMap[hougeki.api_sp_list[i]] : DayAttackTypeMap[hougeki.api_at_type[i]]
-    if (!MultiTargetAttackType.includes(attackType)) {
+    let at = attacker
+    if (!MultiTargetAttackType.has(attackType)) {
       let df, fromEnemy  // Declare ahead
       df = hougeki.api_df_list[i][0] // Defender
       if (hougeki.api_at_eflag != null) {
@@ -565,10 +576,11 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
         useItem : item,
       }))
     } else {
+      const order = MultiTargetAttackOrder[attackType] || []
       for (let j = 0; j < hougeki.api_df_list[i].length; j++) {
         let df, fromEnemy  // Declare ahead
         df = hougeki.api_df_list[i][j] // Defender
-        at = j * 2 // Attacker
+        let at = attacker + order[j] // Attacker
         if (hougeki.api_at_eflag != null) {
           fromEnemy = hougeki.api_at_eflag[i] === 1
         } else {
