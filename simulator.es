@@ -973,6 +973,7 @@ class Simulator2 {
          '/kcsapi/api_req_sortie/battle',
          '/kcsapi/api_req_sortie/airbattle',
          '/kcsapi/api_req_sortie/ld_airbattle',
+         '/kcsapi/api_req_sortie/ld_shooting',
          '/kcsapi/api_req_combined_battle/battle',
          '/kcsapi/api_req_combined_battle/battle_water',
          '/kcsapi/api_req_combined_battle/airbattle',
@@ -1039,9 +1040,12 @@ class Simulator2 {
         this._isNightOnlyMVP = true
       }
     }
-    // Rank rule is special for ld_airbattle.
-    if (['/kcsapi/api_req_sortie/ld_airbattle',
-         '/kcsapi/api_req_combined_battle/ld_airbattle',
+    // Rank rule is special for ld_airbattle and ld_shooting (considered as raid).
+    // FIXME: rename _isAirRaid to a more general name
+    if ([
+      '/kcsapi/api_req_sortie/ld_airbattle',
+      '/kcsapi/api_req_sortie/ld_shooting',
+      '/kcsapi/api_req_combined_battle/ld_airbattle',
     ].includes(path)) {
       this._isAirRaid = true
     }
@@ -1055,6 +1059,7 @@ class Simulator2 {
          '/kcsapi/api_req_sortie/battle',
          '/kcsapi/api_req_sortie/airbattle',
          '/kcsapi/api_req_sortie/ld_airbattle',
+         '/kcsapi/api_req_sortie/ld_shooting',
          '/kcsapi/api_req_combined_battle/ec_battle',
          '/kcsapi/api_req_practice/midnight_battle',
          '/kcsapi/api_req_battle_midnight/battle',
