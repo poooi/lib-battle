@@ -978,6 +978,7 @@ class Simulator2 {
          '/kcsapi/api_req_combined_battle/battle_water',
          '/kcsapi/api_req_combined_battle/airbattle',
          '/kcsapi/api_req_combined_battle/ld_airbattle',
+         '/kcsapi/api_req_combined_battle/ld_shooting',
          '/kcsapi/api_req_combined_battle/ec_battle',
          '/kcsapi/api_req_combined_battle/each_battle',
          '/kcsapi/api_req_combined_battle/each_battle_water',
@@ -1046,6 +1047,7 @@ class Simulator2 {
       '/kcsapi/api_req_sortie/ld_airbattle',
       '/kcsapi/api_req_sortie/ld_shooting',
       '/kcsapi/api_req_combined_battle/ld_airbattle',
+      '/kcsapi/api_req_combined_battle/ld_shooting',
     ].includes(path)) {
       this._isAirRaid = true
     }
@@ -1092,6 +1094,7 @@ class Simulator2 {
     // Combined Fleet
     if (['/kcsapi/api_req_combined_battle/airbattle',
          '/kcsapi/api_req_combined_battle/ld_airbattle',
+         '/kcsapi/api_req_combined_battle/ld_shooting',
          '/kcsapi/api_req_combined_battle/midnight_battle',
          '/kcsapi/api_req_combined_battle/sp_midnight',
     ].includes(path)) {
