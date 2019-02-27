@@ -48,6 +48,7 @@ export const AttackType = {
   Double: "Double",             // 連撃
   Nelson_Touch: "Nelson",       // ネルソンタッチ
   Nagato_Punch: "Nagato",       // 一斉射かッ…胸が熱いな！
+  Mutsu_Blast:  "Mutsu",        // 長門、いい？ いくわよ！ 主砲一斉射ッ！
   Carrier_CI:           "CVCI", // 空母カットイン
   Primary_Secondary_CI: "PSCI", // カットイン(主砲/副砲)
   Primary_Radar_CI    : "PRCI", // カットイン(主砲/電探)
@@ -58,14 +59,16 @@ export const AttackType = {
 }
 
 export const MultiTargetAttackType = new Set([
-  AttackType.Nagato_Punch,
   AttackType.Nelson_Touch,
+  AttackType.Nagato_Punch,
+  AttackType.Mutsu_Blast,
   AttackType.Laser,
 ])
 
 export const MultiTargetAttackOrder = {
-  [AttackType.Nagato_Punch]: [0, 0, 1],
   [AttackType.Nelson_Touch]: [0, 2, 4],
+  [AttackType.Nagato_Punch]: [0, 0, 1],
+  [AttackType.Mutsu_Blast]: [0, 0, 1],
   [AttackType.Laser]: [0, 0, 0],
 }
 
@@ -217,6 +220,7 @@ export const DayAttackTypeMap = {
   7: AttackType.Carrier_CI,
   100: AttackType.Nelson_Touch,
   101: AttackType.Nagato_Punch,
+  102: AttackType.Mutsu_Blast,
 }
 // api_hougeki.api_sp_list => ~
 export const NightAttackTypeMap = {
@@ -228,6 +232,7 @@ export const NightAttackTypeMap = {
   5: AttackType.Primary_Primary_CI,
   100: AttackType.Nelson_Touch,
   101: AttackType.Nagato_Punch,
+  102: AttackType.Mutsu_Blast,
 }
 // api_stage1.api_disp_seiku => ~
 export const AirControlMap = {
