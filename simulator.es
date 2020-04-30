@@ -50,6 +50,7 @@ export const AttackType = {
   Nagato_Punch: "Nagato",       // 一斉射かッ…胸が熱いな！
   Mutsu_Splash:  "Mutsu",       // 長門、いい？ いくわよ！ 主砲一斉射ッ！
   Colorado_Fire: "Colorado",    // 	Colorado戦隊、全力斉射！各個目標に砲撃開始！一気に殲滅する、Fire!!
+  Kongo_Class_Kaini_C_Charge: "Kongo_Class_Kaini_C",
   Carrier_CI:           "CVCI", // 空母カットイン
   Primary_Secondary_CI: "PSCI", // カットイン(主砲/副砲)
   Primary_Radar_CI    : "PRCI", // カットイン(主砲/電探)
@@ -64,6 +65,7 @@ export const MultiTargetAttackType = new Set([
   AttackType.Nagato_Punch,
   AttackType.Mutsu_Splash,
   AttackType.Colorado_Fire,
+  AttackType.Kongo_Class_Kaini_C_Charge,
   AttackType.Laser,
 ])
 
@@ -72,6 +74,7 @@ export const MultiTargetAttackOrder = {
   [AttackType.Nagato_Punch]: [0, 0, 1],
   [AttackType.Mutsu_Splash]: [0, 0, 1],
   [AttackType.Colorado_Fire]: [0, 1, 2],
+  [AttackType.Kongo_Class_Kaini_C_Charge]: [0, 1],
   [AttackType.Laser]: [0, 0, 0],
 }
 
@@ -238,6 +241,7 @@ export const NightAttackTypeMap = {
   101: AttackType.Nagato_Punch,
   102: AttackType.Mutsu_Splash,
   103: AttackType.Colorado_Fire,
+  104: AttackType.Kongo_Class_Kaini_C_Charge,
 }
 // api_stage1.api_disp_seiku => ~
 export const AirControlMap = {
