@@ -1,6 +1,6 @@
 {
   "name": "poi-lib-battle",
-  "version": "2.12.0",
+  "version": "2.12.1",
   "description": "Battle module for poi",
   "main": "index",
   "dependencies": {},
