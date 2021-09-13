@@ -595,6 +595,10 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
         let df, fromEnemy  // Declare ahead
         df = hougeki.api_df_list[i][j] // Defender
         let at = attacker + order[j] // Attacker
+        // Tanaka bug: in combined night battle the sp attack could have wrong attacker index
+        if (isNight && escortFleet && escortFleet.length && at < mainFleetRange) {
+          at += mainFleetRange
+        }
         if (hougeki.api_at_eflag != null) {
           fromEnemy = hougeki.api_at_eflag[i] === 1
         } else {
