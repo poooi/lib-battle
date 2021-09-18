@@ -1137,6 +1137,8 @@ class Simulator2 {
 
     // Land base air attack (assault)
     stages.push(simulateLandBase(enemyFleet, enemyEscort, packet.api_air_base_injection, true))
+    // Arrial Combat (friendly)
+    stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_friendly_kouku, true))
     // Aerial Combat (assault)
     stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_injection_kouku, true))
     // Land base air attack
