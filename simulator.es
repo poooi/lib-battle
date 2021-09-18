@@ -1132,7 +1132,7 @@ class Simulator2 {
   }
 
   prcsDay(packet, path) {
-    const { fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort } = this
+    const { fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, friendFleet } = this
     const { stages } = this
 
     // Land base air attack (assault)
@@ -1143,7 +1143,7 @@ class Simulator2 {
     for (const api_kouku of packet.api_air_base_attack || [])
       stages.push(simulateLandBase(enemyFleet, enemyEscort, api_kouku))
     // Arrial Combat (friendly)
-    stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_friendly_kouku))
+    stages.push(simulateAerial(friendFleet, null, enemyFleet, enemyEscort, packet.api_friendly_kouku))
     // Aerial Combat
     stages.push(simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, packet.api_kouku))
     // Aerial Combat 2nd
