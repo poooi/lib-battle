@@ -51,6 +51,8 @@ export const AttackType = {
   Mutsu_Splash:  "Mutsu",       // 長門、いい？ いくわよ！ 主砲一斉射ッ！
   Colorado_Fire: "Colorado",    // 	Colorado戦隊、全力斉射！各個目標に砲撃開始！一気に殲滅する、Fire!!
   Kongo_Class_Kaini_C_Charge: "Kongo_Class_Kaini_C",
+  Yamato_Attack_Double: "Yamato_Double",
+  Yamato_Attack_Triple: "Yamato_Triple",
   Submarine_Special_Attack: "Submarine_Special_Attack",
   Carrier_CI:           "CVCI", // 空母カットイン
   Primary_Secondary_CI: "PSCI", // カットイン(主砲/副砲)
@@ -67,6 +69,8 @@ export const MultiTargetAttackType = new Set([
   AttackType.Mutsu_Splash,
   AttackType.Colorado_Fire,
   AttackType.Kongo_Class_Kaini_C_Charge,
+  AttackType.Yamato_Attack_Double,
+  AttackType.Yamato_Attack_Triple,
   AttackType.Submarine_Special_Attack,
   AttackType.Laser,
 ])
@@ -77,6 +81,8 @@ export const MultiTargetAttackOrder = {
   [AttackType.Mutsu_Splash]: [0, 0, 1],
   [AttackType.Colorado_Fire]: [0, 1, 2],
   [AttackType.Kongo_Class_Kaini_C_Charge]: [0, 1],
+  [AttackType.Yamato_Attack_Double]: [0, 0, 1],
+  [AttackType.Yamato_Attack_Triple]: [0, 1, 2],
   [AttackType.Submarine_Special_Attack]: [1, 1, 2, 2], // TODO: use correct attack order when further result is available
   [AttackType.Laser]: [0, 0, 0],
 }
@@ -231,6 +237,8 @@ export const DayAttackTypeMap = {
   101: AttackType.Nagato_Punch,
   102: AttackType.Mutsu_Splash,
   103: AttackType.Colorado_Fire,
+  400: AttackType.Yamato_Attack_Triple,
+  401: AttackType.Yamato_Attack_Double,
   302: AttackType.Submarine_Special_Attack,
 }
 // api_hougeki.api_sp_list => ~
@@ -245,6 +253,8 @@ export const NightAttackTypeMap = {
   101: AttackType.Nagato_Punch,
   102: AttackType.Mutsu_Splash,
   103: AttackType.Colorado_Fire,
+  400: AttackType.Yamato_Attack_Triple,
+  401: AttackType.Yamato_Attack_Double,
   104: AttackType.Kongo_Class_Kaini_C_Charge,
   302: AttackType.Submarine_Special_Attack,
 }
