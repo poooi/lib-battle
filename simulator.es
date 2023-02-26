@@ -256,10 +256,11 @@ export const NightAttackTypeMap = {
   101: AttackType.Nagato_Punch,
   102: AttackType.Mutsu_Splash,
   103: AttackType.Colorado_Fire,
+  104: AttackType.Kongo_Class_Kaini_C_Charge,
+  200: AttackType.Zuiun_Night_Attack,
+  302: AttackType.Submarine_Special_Attack,
   400: AttackType.Yamato_Attack_Triple,
   401: AttackType.Yamato_Attack_Double,
-  104: AttackType.Kongo_Class_Kaini_C_Charge,
-  302: AttackType.Submarine_Special_Attack,
 }
 // api_stage1.api_disp_seiku => ~
 export const AirControlMap = {
