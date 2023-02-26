@@ -54,6 +54,7 @@ export const AttackType = {
   Yamato_Attack_Double: "Yamato_Double",
   Yamato_Attack_Triple: "Yamato_Triple",
   Submarine_Special_Attack: "Submarine_Special_Attack",
+  Zuiun_Night_Attack: "Zuiyun_Night_Attack",
   Carrier_CI:           "CVCI", // 空母カットイン
   Primary_Secondary_CI: "PSCI", // カットイン(主砲/副砲)
   Primary_Radar_CI    : "PRCI", // カットイン(主砲/電探)
@@ -72,6 +73,7 @@ export const MultiTargetAttackType = new Set([
   AttackType.Yamato_Attack_Double,
   AttackType.Yamato_Attack_Triple,
   AttackType.Submarine_Special_Attack,
+  AttackType.Zuiun_Night_Attack,
   AttackType.Laser,
 ])
 
@@ -84,6 +86,7 @@ export const MultiTargetAttackOrder = {
   [AttackType.Yamato_Attack_Double]: [0, 0, 1],
   [AttackType.Yamato_Attack_Triple]: [0, 1, 2],
   [AttackType.Submarine_Special_Attack]: [1, 1, 2, 2], // TODO: use correct attack order when further result is available
+  [AttackType.Zuiun_Night_Attack]: [0, 0],
   [AttackType.Laser]: [0, 0, 0],
 }
 
@@ -609,7 +612,7 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
       for (let j = 0; j < hougeki.api_df_list[i].length; j++) {
         let df, fromEnemy  // Declare ahead
         df = hougeki.api_df_list[i][j] // Defender
-        let at = attacker + order[j] // Attacker
+        let at = attacker + (order[j] || 0) // Attacker
         // Tanaka bug: in combined night battle the sp attack could have wrong attacker index
         if (isNight && escortFleet && escortFleet.length && at < mainFleetRange) {
           at += mainFleetRange
