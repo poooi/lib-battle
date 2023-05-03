@@ -448,8 +448,8 @@ function generateEngagementInfo(packet, oursFleet, emenyFleet, opts={}) {
       o.eContact = plane[1] > 0 ? plane[1] : null
     }
     if (api_flare_pos != null) {
-      o.fFlare   =  oursFleet[api_flare_pos[0] - 1]
-      o.eFlare   = emenyFleet[api_flare_pos[1] - 1]
+      o.fFlare   =  oursFleet[api_flare_pos[0]]
+      o.eFlare   = emenyFleet[api_flare_pos[1]]
     }
   }
 
