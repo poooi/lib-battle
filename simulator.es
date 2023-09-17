@@ -437,6 +437,10 @@ function generateEngagementInfo(packet, oursFleet, emenyFleet, opts={}) {
     // Weaken mechanism
     const {api_boss_damaged, api_xal01} = packet
     o.weakened = [api_boss_damaged, api_xal01].find(x => x != null)
+    // Carry over smoke_type
+    const {api_smoke_type} = packet
+    // old records doesn't have this key, unifying to 0.
+    o.smokeType = api_smoke_type || 0
   }
   if (opts.night) {
     // Night combat
