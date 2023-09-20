@@ -171,6 +171,7 @@ export class EngagementInfo {
     this.eFlare   = opts.eFlare    // api_flare_pos[1] => Ship
     // Weaken Mechanism (Event Map)
     this.weakened = this.weakened  // api_boss_damaged, api_xal01, ...
+    this.smokeType = this.smokeType // api_smoke_type
   }
 }
 
