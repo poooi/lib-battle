@@ -53,8 +53,11 @@ export const AttackType = {
   Kongo_Class_Kaini_C_Charge: "Kongo_Class_Kaini_C",
   Yamato_Attack_Double: "Yamato_Double",
   Yamato_Attack_Triple: "Yamato_Triple",
-  Submarine_Special_Attack: "Submarine_Special_Attack",
+  Submarine_Special_Attack_2_3: "Submarine_Special_Attack_2_3",
+  Submarine_Special_Attack_3_4: "Submarine_Special_Attack_3_4",
+  Submarine_Special_Attack_2_4: "Submarine_Special_Attack_2_4",
   Zuiun_Night_Attack: "Zuiyun_Night_Attack",
+  Type_4_LC_Special_Attack: "Type_4_LC_Special_Attack",
   Carrier_CI:           "CVCI", // 空母カットイン
   Primary_Secondary_CI: "PSCI", // カットイン(主砲/副砲)
   Primary_Radar_CI    : "PRCI", // カットイン(主砲/電探)
@@ -72,9 +75,12 @@ export const MultiTargetAttackType = new Set([
   AttackType.Kongo_Class_Kaini_C_Charge,
   AttackType.Yamato_Attack_Double,
   AttackType.Yamato_Attack_Triple,
-  AttackType.Submarine_Special_Attack,
+  AttackType.Submarine_Special_Attack_2_3,
+  AttackType.Submarine_Special_Attack_3_4,
+  AttackType.Submarine_Special_Attack_2_4,
   AttackType.Zuiun_Night_Attack,
   AttackType.Laser,
+  AttackType.Type_4_LC_Special_Attack,
 ])
 
 export const MultiTargetAttackOrder = {
@@ -85,9 +91,12 @@ export const MultiTargetAttackOrder = {
   [AttackType.Kongo_Class_Kaini_C_Charge]: [0, 1],
   [AttackType.Yamato_Attack_Double]: [0, 0, 1],
   [AttackType.Yamato_Attack_Triple]: [0, 1, 2],
-  [AttackType.Submarine_Special_Attack]: [1, 1, 2, 2], // TODO: use correct attack order when further result is available
+  [AttackType.Submarine_Special_Attack_2_3]: [1, 1, 2, 2],
+  [AttackType.Submarine_Special_Attack_3_4]: [2, 2, 3, 3],
+  [AttackType.Submarine_Special_Attack_2_4]: [1, 1, 3, 3],
   [AttackType.Zuiun_Night_Attack]: [0, 0],
   [AttackType.Laser]: [0, 0, 0],
+  [AttackType.Type_4_LC_Special_Attack]: [0, 0, 0, 0, 0, 0],
 }
 
 export const HitType = {
@@ -241,9 +250,12 @@ export const DayAttackTypeMap = {
   101: AttackType.Nagato_Punch,
   102: AttackType.Mutsu_Splash,
   103: AttackType.Colorado_Fire,
+  300: AttackType.Submarine_Special_Attack_2_3,
+  301: AttackType.Submarine_Special_Attack_3_4,
+  302: AttackType.Submarine_Special_Attack_2_4,
   400: AttackType.Yamato_Attack_Triple,
   401: AttackType.Yamato_Attack_Double,
-  302: AttackType.Submarine_Special_Attack,
+  1000: AttackType.Type_4_LC_Special_Attack,
 }
 // api_hougeki.api_sp_list => ~
 export const NightAttackTypeMap = {
@@ -259,9 +271,12 @@ export const NightAttackTypeMap = {
   103: AttackType.Colorado_Fire,
   104: AttackType.Kongo_Class_Kaini_C_Charge,
   200: AttackType.Zuiun_Night_Attack,
-  302: AttackType.Submarine_Special_Attack,
+  300: AttackType.Submarine_Special_Attack_2_3,
+  301: AttackType.Submarine_Special_Attack_3_4,
+  302: AttackType.Submarine_Special_Attack_2_4,
   400: AttackType.Yamato_Attack_Triple,
   401: AttackType.Yamato_Attack_Double,
+  1000: AttackType.Type_4_LC_Special_Attack,
 }
 // api_stage1.api_disp_seiku => ~
 export const AirControlMap = {
