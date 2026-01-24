@@ -44,19 +44,34 @@ function summarizeShellingAttack(atk: any) {
   }
 }
 
-function fromOracleTorpedo(oracleAtk: any) {
+function enemyPosFromIndex(sim: any, idx: number) {
+  if (idx !== 0) return idx
+  const enemy0 = Array.isArray(sim?.enemyFleet) ? sim.enemyFleet[0] : null
+  return enemy0 ? 0 : null
+}
+
+function fromOracleTorpedo(sim: any, oracleAtk: any) {
   const fromPos = oracleAtk.from.side === "friend" ? oracleAtk.from.index + 1 : oracleAtk.from.index
   // For opening torpedo, api_frai target index matches enemy Ship.pos (0-based with null sentinel at 0).
-  const toPos = oracleAtk.to.side === "enemy" ? (oracleAtk.to.index === 0 ? null : oracleAtk.to.index) : oracleAtk.to.index + 1
+  const toPos = oracleAtk.to.side === "enemy" ? enemyPosFromIndex(sim, oracleAtk.to.index) : oracleAtk.to.index + 1
   return { fromPos, toPos, damage: oracleAtk.damage, hit: oracleAtk.cl }
 }
 
-function fromOracleShelling(oracleAtk: any) {
+function fromOracleShelling(sim: any, oracleAtk: any) {
   return {
     // api_at_list is 0-based with -1 sentinel; Ship.pos is 1-based for our side.
     fromPos: oracleAtk.from.index + 1,
-    // Enemy fleet has a null sentinel at index 0.
-    toPos: oracleAtk.to.index === 0 ? null : oracleAtk.to.index,
+    toPos: enemyPosFromIndex(sim, oracleAtk.to.index),
+    damage: oracleAtk.damage,
+    hit: oracleAtk.cl,
+  }
+}
+
+function fromOracleFriendlyShelling(sim: any, oracleAtk: any) {
+  return {
+    // Friend fleet Ship.pos is 0-based in simulator (_initEnemy), so keep it.
+    fromPos: oracleAtk.from.index,
+    toPos: enemyPosFromIndex(sim, oracleAtk.to.index),
     damage: oracleAtk.damage,
     hit: oracleAtk.cl,
   }
@@ -82,7 +97,7 @@ describe("smoke", () => {
     const torpedoAttacks = stageAttacksByTypeSubtype(sim, "Torpedo", "Opening")
     const actual = torpedoAttacks.filter(Boolean).map(summarizeTorpedoAttack)
 
-    const expected = (oracle!.attacks || []).map(fromOracleTorpedo)
+    const expected = (oracle!.attacks || []).map((a: any) => fromOracleTorpedo(sim, a))
     expect(actual).toEqual(expected)
   })
 
@@ -98,7 +113,7 @@ describe("smoke", () => {
 
     const shellingAttacks = stageAttacksByTypeSubtype(sim, "Shelling", "Night")
     const actual = shellingAttacks.filter(Boolean).map(summarizeShellingAttack)
-    const expected = oracleAttacks.map(fromOracleShelling)
+    const expected = oracleAttacks.map((a: any) => fromOracleShelling(sim, a))
     expect(actual).toEqual(expected)
   })
 
@@ -114,12 +129,19 @@ describe("smoke", () => {
     const oracle = oracleFriendlyNightShelling(packet)
     expect(oracle).toBeTruthy()
 
-    // Friendly attacks are simulated in Night stage with fromShip.owner=Friend,
-    // but are included in the same "Shelling" stage as night combat.
-    // For this first oracle test, just ensure we can extract and that counts match.
-    const nightStage = (sim.stages || []).find((s: any) => s && s.type === "Shelling" && s.subtype === "Night")
-    const actualCount = Array.isArray(nightStage?.attacks) ? nightStage.attacks.length : 0
-    expect(actualCount).toBeGreaterThanOrEqual((oracle!.attacks || []).length)
+    // Friendly attacks are simulated as a separate Night shelling stage.
+    const friendlyStage = (sim.stages || []).find((s: any) => {
+      if (!s || s.type !== "Shelling" || s.subtype !== "Night") return false
+      const attacks = Array.isArray(s.attacks) ? s.attacks : []
+      return attacks.some((a: any) => a?.fromShip?.owner === "Friend")
+    })
+    const friendlyAttacks = Array.isArray(friendlyStage?.attacks)
+      ? friendlyStage.attacks.filter((a: any) => a?.fromShip?.owner === "Friend")
+      : []
+
+    const actual = friendlyAttacks.filter(Boolean).map(summarizeShellingAttack)
+    const expected = (oracle!.attacks || []).map((a: any) => fromOracleFriendlyShelling(sim, a))
+    expect(actual).toEqual(expected)
   })
 
   it("simulates injection kouku battle without throwing", () => {

@@ -41,13 +41,14 @@ function normalizeClList(x: unknown, len: number): number[] {
 }
 
 function flattenTargets(df: unknown): number[] {
-  // api_df_list is a list of lists.
-  // Each inner list usually has a single target index, but can include multiple.
+  // api_df_list is usually `number[][]` (one list per attack), but some payloads
+  // can appear as a nested list-of-lists.
   if (!Array.isArray(df)) return []
+  if (df.every(v => typeof v === "number")) return df as number[]
   const out: number[] = []
   for (const inner of df) {
-    if (!Array.isArray(inner)) continue
-    for (const v of inner) if (typeof v === "number") out.push(v)
+    if (typeof inner === "number") out.push(inner)
+    else if (Array.isArray(inner)) for (const v of inner) if (typeof v === "number") out.push(v)
   }
   return out
 }
@@ -246,15 +247,42 @@ export function oracleFriendlyNightShelling(packet: any): OraclePhase | null {
     const attacker = atList[i]
     if (typeof attacker !== "number" || attacker < 0) continue
 
-    const targets = flattenTargets(dfList[i])
-    const perTarget = zipTargetsDamageCl(targets, damage[i], clList[i])
-    for (const t of perTarget) {
-      if (t.target < 0) continue
+    const df = dfList[i]
+    let targets: number[] = []
+    if (typeof df === "number") {
+      if (df >= 0) targets = [df]
+    } else if (Array.isArray(df)) {
+      targets = df.filter((x: any) => typeof x === "number" && x >= 0)
+    }
+    if (targets.length === 0) continue
+
+    const dmgEntry = damage[i]
+    const clEntry = clList[i]
+
+    const uniqueTargets = Array.from(new Set(targets))
+    if (uniqueTargets.length === 1) {
+      const d = normalizeDamageList(dmgEntry)
+      const c = normalizeClList(clEntry, d.length)
       attacks.push({
         from: { side: "friendSupport", index: attacker },
-        to: { side: "enemy", index: t.target },
-        damage: t.damage,
-        cl: t.cl,
+        to: { side: "enemy", index: uniqueTargets[0] },
+        damage: d,
+        cl: c,
+      })
+      continue
+    }
+
+    // Multi-target: assume one hit per target index.
+    for (let j = 0; j < targets.length; j++) {
+      const t = targets[j]
+      if (t < 0) continue
+      const dmg = Array.isArray(dmgEntry) && typeof dmgEntry[j] === "number" ? [Math.floor(dmgEntry[j])] : []
+      const clv = Array.isArray(clEntry) && typeof clEntry[j] === "number" ? [Math.floor(clEntry[j])] : []
+      attacks.push({
+        from: { side: "friendSupport", index: attacker },
+        to: { side: "enemy", index: t },
+        damage: dmg,
+        cl: clv,
       })
     }
   }
