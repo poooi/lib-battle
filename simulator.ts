@@ -1,6 +1,13 @@
-// @ts-nocheck
-
 type Param4 = [number, number, number, number]
+
+type SimulatorOptions = {
+  usePoiAPI?: boolean
+}
+
+type EngagementInfoOptions2 = {
+  engagement?: boolean
+  night?: boolean
+}
 
 type ShipDbEntry = {
   api_houg: [number]
@@ -640,7 +647,7 @@ function generateAerialInfo(kouku, mainFleet, escortFleet) {
   return preventNullObject(o)
 }
 
-function generateEngagementInfo(packet, oursFleet, emenyFleet, opts={}) {
+function generateEngagementInfo(packet, oursFleet, emenyFleet, opts: EngagementInfoOptions2 = {}) {
   if (!(packet != null))
     return
   opts = {...{engagement: false, night: false}, ...opts}
@@ -817,7 +824,7 @@ function simulateOpeningTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyE
   return list
 }
 
-function simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigeki, subtype) {
+function simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigeki, subtype?) {
   if (!(raigeki != null)) {
     return
   }
@@ -835,7 +842,7 @@ function simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigek
   })
 }
 
-function simulateOpeningTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigeki, subtype) {
+function simulateOpeningTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigeki, subtype?) {
   if (!(raigeki != null)) {
     return
   }
@@ -857,7 +864,7 @@ function simulateOpeningTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort,
   })
 }
 
-function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, hougeki, subtype) {
+function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, hougeki, subtype?) {
   if (!(hougeki != null)) {
     return
   }
@@ -1178,10 +1185,26 @@ function getEngagementStage(packet) {
 
 
 class Simulator2 {
+  usePoiAPI: boolean | undefined
+  fleetType: number
+  mainFleet: Array<Ship | null> | undefined
+  escortFleet: Array<Ship | null> | undefined
+  supportFleet: Array<Ship | null> | undefined
+  landBaseAirCorps: unknown
+  enemyFleet: Array<Ship | null> | null
+  enemyEscort: Array<Ship | null> | null
+  friendFleet: Array<Ship | null> | null
+  enemyType: number
+  stages: Array<Stage | null>
+  _result: Result | null
+  _isAirRaid: boolean
+  _isEngaged: boolean
+  _isNightOnlyMVP: boolean
+
   constructor(fleet, opts={}) {
     // When no using poi API:
     //   enemyShip.raw == null
-    this.usePoiAPI = opts.usePoiAPI
+    this.usePoiAPI = (opts as SimulatorOptions).usePoiAPI
 
     this.fleetType    = fleet.type || 0
     this.mainFleet    = this._initFleet(fleet.main, 0)
@@ -1191,6 +1214,7 @@ class Simulator2 {
     this.enemyFleet   = null  // Assign at first packet
     this.enemyEscort  = null  // ^
     this.friendFleet  = null // NPC Friend fleet support
+    this.enemyType = 0
 
     // Stage
     this.stages  = []
@@ -1252,7 +1276,7 @@ class Simulator2 {
     return fleet
   }
 
-  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_e_maxhps, api_e_nowhps, api_ship_lv, api_param=[], owner=ShipOwner.Enemy) {
+  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_e_maxhps, api_e_nowhps, api_ship_lv, api_param=[], owner: ShipOwner = ShipOwner.Enemy) {
     if (!(api_ship_ke != null)) return
     let fleet = []
     const range = [...new Array(api_ship_ke.length).keys()]
@@ -1260,7 +1284,7 @@ class Simulator2 {
       let id    = api_ship_ke[i]
       let slots = (api_eSlot && api_eSlot[i]) || []
       let ship, raw, baseParam, finalParam
-      if (typeof id === "number" && id > 0) {
+       if (typeof id === "number" && id > 0) {
         if (api_ship_lv == null) api_ship_lv = []
         if (api_e_maxhps == null) api_e_maxhps = []
         if (api_e_nowhps == null) api_e_nowhps = []
@@ -1281,7 +1305,7 @@ class Simulator2 {
             ]
           }, baseParam)
         }
-        ship = new Ship({
+         ship = new Ship({
           id        : id,
           owner     : owner,
           pos       : intl + i,
@@ -1657,7 +1681,7 @@ class Simulator2 {
     const rank = this._isAirRaid
       ? simulateAirRaidBattleRank(this.mainFleet, this.escortFleet)
       : simulateBattleRank(this.mainFleet, this.escortFleet, this.enemyFleet, this.enemyEscort)
-    const mvp = this._isNightOnlyMVP
+    const mvp: [number, number] = this._isNightOnlyMVP
       ? [0, simulateFleetNightMVP(this.stages)]
       : [simulateFleetMVP(this.mainFleet), simulateFleetMVP(this.escortFleet)]
 
