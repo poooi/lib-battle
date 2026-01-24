@@ -4,6 +4,7 @@ import { Simulator, Battle } from "../index"
 
 import {
   oracleOpeningTorpedoWithLens,
+  oracleClosingTorpedoWithLens,
   oracleShelling,
 } from "./oracle/packet-oracle"
 
@@ -94,6 +95,33 @@ describe("packet oracle phases", () => {
     expect(oracle).toBeTruthy()
 
     const attacks = stageAttacksByTypeSubtype(sim, "Torpedo", "Opening")
+    const actual = attacks
+      .filter((a: any) => a && a.fromShip?.owner === "Ours" && a.toShip?.owner === "Enemy")
+      .map(summarizeAttack)
+    const expected = (oracle!.attacks || []).map((a: any) => fromOracleTorpedo(sim, a))
+    expect(actual).toEqual(expected)
+  })
+
+  it("api_raigeki matches oracle (closing torpedo)", () => {
+    const json: any = loadGzJson("tests/fixtures/battle-detail/features/injection_kouku/1616044537827.json.gz")
+    const battle = new Battle(json)
+    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
+
+    const packet = (json as any).packet?.[0]
+    const friendLen =
+      (Array.isArray(sim.mainFleet) ? sim.mainFleet.length : 0) +
+      (Array.isArray(sim.escortFleet) ? sim.escortFleet.length : 0)
+    const enemyLen =
+      (Array.isArray(sim.enemyFleet) ? sim.enemyFleet.length : 0) +
+      (Array.isArray(sim.enemyEscort) ? sim.enemyEscort.length : 0)
+
+    const oracle = oracleClosingTorpedoWithLens(packet, {
+      friendLen: friendLen > 0 ? friendLen : undefined,
+      enemyLen: enemyLen > 0 ? enemyLen : undefined,
+    })
+    expect(oracle).toBeTruthy()
+
+    const attacks = stageAttacksByType(sim, "Torpedo")
     const actual = attacks
       .filter((a: any) => a && a.fromShip?.owner === "Ours" && a.toShip?.owner === "Enemy")
       .map(summarizeAttack)

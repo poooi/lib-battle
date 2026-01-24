@@ -74,6 +74,57 @@ export function oracleOpeningTorpedo(packet: any): OraclePhase | null {
   return oracleOpeningTorpedoWithLens(packet)
 }
 
+export function oracleClosingTorpedoWithLens(
+  packet: any,
+  lens: { friendLen?: number; enemyLen?: number } = {},
+): OraclePhase | null {
+  const raigeki = packet?.api_raigeki
+  if (!raigeki) return null
+
+  const frai = asNumberArray(raigeki.api_frai)
+  const erai = asNumberArray(raigeki.api_erai)
+  const fydam = asNumberArray(raigeki.api_fydam ?? raigeki.api_fdam)
+  const eydam = asNumberArray(raigeki.api_eydam ?? raigeki.api_edam)
+  const fcl = asNumberArray(raigeki.api_fcl)
+  const ecl = asNumberArray(raigeki.api_ecl)
+
+  const attacks: OracleAttack[] = []
+
+  // Friend -> Enemy
+  for (let i = 0; i < frai.length; i++) {
+    const t = frai[i]
+    if (typeof t !== "number" || t < 0) continue
+    if (lens.friendLen != null && i >= lens.friendLen) continue
+    if (lens.enemyLen != null && t >= lens.enemyLen) continue
+    const damage = typeof fydam[i] === "number" ? [Math.floor(fydam[i])] : []
+    const clv = typeof fcl[i] === "number" ? [Math.floor(fcl[i])] : []
+    attacks.push({
+      from: { side: "friend", index: i },
+      to: { side: "enemy", index: t },
+      damage,
+      cl: clv,
+    })
+  }
+
+  // Enemy -> Friend
+  for (let i = 0; i < erai.length; i++) {
+    const t = erai[i]
+    if (typeof t !== "number" || t < 0) continue
+    if (lens.enemyLen != null && i >= lens.enemyLen) continue
+    if (lens.friendLen != null && t >= lens.friendLen) continue
+    const damage = typeof eydam[i] === "number" ? [Math.floor(eydam[i])] : []
+    const clv = typeof ecl[i] === "number" ? [Math.floor(ecl[i])] : []
+    attacks.push({
+      from: { side: "enemy", index: i },
+      to: { side: "friend", index: t },
+      damage,
+      cl: clv,
+    })
+  }
+
+  return { kind: "closing_torpedo", attacks }
+}
+
 export function oracleOpeningTorpedoWithLens(
   packet: any,
   lens: { friendLen?: number; enemyLen?: number } = {},
