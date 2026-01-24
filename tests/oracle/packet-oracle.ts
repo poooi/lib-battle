@@ -12,6 +12,17 @@ export type OraclePhase = {
   attacks: OracleAttack[]
 }
 
+export type OracleAerialHit = {
+  to: { side: Side; index: number }
+  damage: number
+  cl: number
+}
+
+export type OracleAerialPhase = {
+  kind: "aerial_stage3" | "landbase_stage3"
+  hits: OracleAerialHit[]
+}
+
 function isNumberArray(x: unknown): x is number[] {
   return Array.isArray(x) && x.every(v => typeof v === "number")
 }
@@ -38,6 +49,56 @@ function normalizeClList(x: unknown, len: number): number[] {
   // Pad to match damage entries so the comparison is stable.
   while (out.length < len) out.push(0)
   return out.slice(0, len)
+}
+
+function normalizeStage3ClFlag(x: unknown, len: number): number[] {
+  if (!Array.isArray(x)) return Array(len).fill(0)
+  const out: number[] = []
+  for (const v of x) {
+    if (typeof v !== "number") continue
+    if (v < 0) continue
+    out.push(Math.floor(v))
+  }
+  while (out.length < len) out.push(0)
+  return out.slice(0, len)
+}
+
+function stage3HitsForFleet(side: Side, dam: unknown, clFlag: unknown): OracleAerialHit[] {
+  const damList = asNumberArray(dam)
+  const clList = normalizeStage3ClFlag(clFlag, damList.length)
+  const hits: OracleAerialHit[] = []
+  for (let i = 0; i < damList.length; i++) {
+    const dmg = damList[i]
+    if (typeof dmg !== "number") continue
+    if (dmg < 0) continue
+    const d = Math.floor(dmg)
+    if (d <= 0) continue
+    hits.push({ to: { side, index: i }, damage: d, cl: clList[i] ?? 0 })
+  }
+  return hits
+}
+
+export function oracleAerialStage3(packet: any): OracleAerialPhase | null {
+  const kouku = packet?.api_kouku
+  const st3 = kouku?.api_stage3
+  if (!st3) return null
+  const hits: OracleAerialHit[] = []
+  hits.push(...stage3HitsForFleet("enemy", st3.api_edam, st3.api_ecl_flag))
+  hits.push(...stage3HitsForFleet("friend", st3.api_fdam, st3.api_fcl_flag))
+  return { kind: "aerial_stage3", hits }
+}
+
+export function oracleLandBaseStage3(packet: any, idx: number): OracleAerialPhase | null {
+  const list = packet?.api_air_base_attack
+  if (!Array.isArray(list)) return null
+  const kouku = list[idx]
+  const st3 = kouku?.api_stage3
+  if (!st3) return null
+  const hits: OracleAerialHit[] = []
+  hits.push(...stage3HitsForFleet("enemy", st3.api_edam, st3.api_ecl_flag))
+  // Friend-side stage3 for LBAS isn't used in these fixtures; include if present.
+  hits.push(...stage3HitsForFleet("friend", st3.api_fdam, st3.api_fcl_flag))
+  return { kind: "landbase_stage3", hits }
 }
 
 function flattenTargets(df: unknown): number[] {

@@ -3,6 +3,8 @@ import { describe, it, expect } from "vitest"
 import { Simulator, Battle } from "../index"
 
 import {
+  oracleAerialStage3,
+  oracleLandBaseStage3,
   oracleOpeningTorpedoWithLens,
   oracleClosingTorpedoWithLens,
   oracleShelling,
@@ -54,6 +56,23 @@ function fromOracleShelling(sim: any, oracleAtk: any) {
     damage: oracleAtk.damage,
     hit: oracleAtk.cl,
   }
+}
+
+function summarizeAerialAttack(atk: any) {
+  const to = atk?.toShip
+  const side = to?.owner === "Enemy" ? "enemy" : to?.owner === "Ours" ? "friend" : null
+  const hit = Array.isArray(atk?.hit) ? Math.floor(atk.hit[0] ?? 0) : 0
+  return {
+    toSide: side,
+    toPos: to?.pos ?? null,
+    damage: Array.isArray(atk?.damage) ? Math.floor(atk.damage[0] ?? 0) : 0,
+    cl: hit === 2 ? 1 : 0,
+  }
+}
+
+function fromOracleStage3(sim: any, h: any) {
+  const toPos = h.to.side === "enemy" ? enemyPosFromIndex(sim, h.to.index) : h.to.index + 1
+  return { toSide: h.to.side === "enemy" ? "enemy" : "friend", toPos, damage: h.damage, cl: h.cl }
 }
 
 describe("packet oracle phases", () => {
@@ -126,6 +145,49 @@ describe("packet oracle phases", () => {
       .filter((a: any) => a && a.fromShip?.owner === "Ours" && a.toShip?.owner === "Enemy")
       .map(summarizeAttack)
     const expected = (oracle!.attacks || []).map((a: any) => fromOracleTorpedo(sim, a))
+    expect(actual).toEqual(expected)
+  })
+
+  it("api_kouku.api_stage3 matches oracle (aerial)", () => {
+    const json: any = loadGzJson("tests/fixtures/battle-detail/features/injection_kouku/1616044537827.json.gz")
+    const battle = new Battle(json)
+    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
+
+    const packet = (json as any).packet?.[0]
+    const oracle = oracleAerialStage3(packet)
+    expect(oracle).toBeTruthy()
+
+    const attacks = stageAttacksByType(sim, "Aerial")
+    const actual = attacks
+      .filter((a: any) => a && a.toShip?.owner === "Enemy")
+      .map(summarizeAerialAttack)
+    const expected = (oracle!.hits || [])
+      .filter((h: any) => h?.to?.side === "enemy")
+      .map((h: any) => fromOracleStage3(sim, h))
+    expect(actual).toEqual(expected)
+  })
+
+  it("api_air_base_attack[0].api_stage3 matches oracle (LBAS)", () => {
+    const json: any = loadGzJson("tests/fixtures/battle-detail/features/air_base_attack/1615132578245.json.gz")
+    const battle = new Battle(json)
+    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
+
+    const packet = (json as any).packet?.[0]
+    const oracle = oracleLandBaseStage3(packet, 0)
+    expect(oracle).toBeTruthy()
+
+    const stages = Array.isArray(sim?.stages) ? sim.stages : []
+    const stage = stages.find((s: any) => s && s.type === "LandBase")
+    const attacks = Array.isArray(stage?.attacks) ? stage.attacks : []
+
+    const actual = attacks
+      .filter((a: any) => a && a.toShip?.owner === "Enemy")
+      .map(summarizeAerialAttack)
+
+    const expected = (oracle!.hits || [])
+      .filter((h: any) => h?.to?.side === "enemy")
+      .map((h: any) => fromOracleStage3(sim, h))
+
     expect(actual).toEqual(expected)
   })
 })
