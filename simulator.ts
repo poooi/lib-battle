@@ -1,3 +1,4 @@
+// @ts-nocheck
 
 export class Stage {
   constructor(opts) {

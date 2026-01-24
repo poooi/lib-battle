@@ -1,5 +1,9 @@
 docs/
 tests/
 
-.babelrc
-.eslintrc.js
+eslint.config.cjs
+tsconfig.json
+
+*.ts
+*.d.ts
+*.js.map
