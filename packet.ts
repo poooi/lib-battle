@@ -6,7 +6,9 @@ export const BattleType = {
 
 export type BattleType = (typeof BattleType)[keyof typeof BattleType]
 
-export type BattleMap = [number, number, number]
+// Historically some captures/fixtures type `map` as `number[]`.
+// Keep the canonical tuple but accept the wider shape.
+export type BattleMap = [number, number, number] | number[]
 
 export interface FleetOptions {
   type?: number

@@ -567,6 +567,7 @@ function damageShip(fromShip, toShip, damage) {
   }
   let fromHP = toShip.nowHP
   toShip.nowHP  -= damage
+  if (toShip.nowHP < 0) toShip.nowHP = 0
   toShip.lostHP += damage
   let item   = useItem(toShip)
   if (item) {
@@ -735,19 +736,31 @@ function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku, 
 }
 
 function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, eydam, erai, ecl) {
-  if (!(enemyFleet != null && eydam != null)) {
+  if (!(enemyFleet != null && eydam != null && erai != null && ecl != null)) {
     return []
   }
+  // Normal-fleet battles can pass `null` escorts.
+  escortFleet = escortFleet || []
+  enemyEscort = enemyEscort || []
   const list = []
   for (let [i, t] of erai.entries()) {
     let fromShip, toShip
     const mainFleetRange = mainFleet.length
     const enemyFleetRange = enemyFleet.length
     if (i < 0 || t < 0) continue
-    if (i < mainFleetRange) fromShip = mainFleet[i]
-    else        fromShip = escortFleet[i - mainFleetRange]
-    if (t < enemyFleetRange) toShip = enemyFleet[t]
-    else        toShip = enemyEscort[t - enemyFleetRange]
+    if (eydam[i] == null || ecl[i] == null) continue
+    if (i < mainFleetRange) {
+      fromShip = mainFleet[i]
+    } else {
+      fromShip = escortFleet[i - mainFleetRange]
+    }
+    if (fromShip == null) continue
+    if (t < enemyFleetRange) {
+      toShip = enemyFleet[t]
+    } else {
+      toShip = enemyEscort[t - enemyFleetRange]
+    }
+    if (toShip == null) continue
     let damage = Math.floor(eydam[i])
     let hit = (ecl[i] === 2 ? HitType.Critical : (ecl[i] === 1 ? HitType.Hit : HitType.Miss))
     let {fromHP, toHP, item} = damageShip(fromShip, toShip, damage)
@@ -769,6 +782,9 @@ function simulateOpeningTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyE
   if (!(enemyFleet != null && eydamList != null)) {
     return []
   }
+  // Normal-fleet battles can pass `null` escorts.
+  escortFleet = escortFleet || []
+  enemyEscort = enemyEscort || []
   const list = []
   for (let [i, tList] of eraiList.entries()) {
     let fromShip, toShip
@@ -776,10 +792,13 @@ function simulateOpeningTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyE
     const enemyFleetRange = enemyFleet.length
     if (i < 0 || tList == null) continue
     if (i < mainFleetRange) fromShip = mainFleet[i]
-    else        fromShip = escortFleet[i - mainFleetRange]
+    else fromShip = escortFleet[i - mainFleetRange]
+    if (fromShip == null) continue
     for (let [j, t] of tList.entries()) {
+      if (t < 0) continue
       if (t < enemyFleetRange) toShip = enemyFleet[t]
-      else        toShip = enemyEscort[t - enemyFleetRange]
+      else toShip = enemyEscort[t - enemyFleetRange]
+      if (toShip == null) continue
       let damage = Math.floor(eydamList[i][j])
       let hit = (eclList[i][j] === 2 ? HitType.Critical : (eclList[i][j] === 1 ? HitType.Hit : HitType.Miss))
       let {fromHP, toHP, item} = damageShip(fromShip, toShip, damage)
@@ -805,10 +824,10 @@ function simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigek
   let attacks = []
   if (raigeki.api_frai != null)
     attacks = attacks.concat(simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort,
-      raigeki.api_fydam, raigeki.api_frai, raigeki.api_fcl))
+      (raigeki.api_fydam != null ? raigeki.api_fydam : raigeki.api_fdam), raigeki.api_frai, raigeki.api_fcl))
   if (raigeki.api_erai != null)
     attacks = attacks.concat(simulateTorpedoAttack(enemyFleet, enemyEscort, mainFleet, escortFleet,
-      raigeki.api_eydam, raigeki.api_erai, raigeki.api_ecl))
+      (raigeki.api_eydam != null ? raigeki.api_eydam : raigeki.api_edam), raigeki.api_erai, raigeki.api_ecl))
   return new Stage({
     type: StageType.Torpedo,
     attacks: attacks,
