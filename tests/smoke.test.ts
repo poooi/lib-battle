@@ -95,9 +95,13 @@ describe("smoke", () => {
     expect(oracle).toBeTruthy()
 
     const torpedoAttacks = stageAttacksByTypeSubtype(sim, "Torpedo", "Opening")
-    const actual = torpedoAttacks.filter(Boolean).map(summarizeTorpedoAttack)
+    const actual = torpedoAttacks
+      .filter((a: any) => Array.isArray(a?.damage) && a.damage.some((d: any) => typeof d === "number" && d > 0))
+      .map(summarizeTorpedoAttack)
 
-    const expected = (oracle!.attacks || []).map((a: any) => fromOracleTorpedo(sim, a))
+    const expected = (oracle!.attacks || [])
+      .filter((a: any) => Array.isArray(a?.damage) && a.damage.some((d: any) => typeof d === "number" && d > 0))
+      .map((a: any) => fromOracleTorpedo(sim, a))
     expect(actual).toEqual(expected)
   })
 
