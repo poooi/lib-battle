@@ -27,9 +27,9 @@ export class Fleet {
 
   constructor(opts: FleetOptions = {}) {
     this.type = opts.type // api_port/port.api_combined_flag
-    this.main = opts.main // api_get_member/deck[].api_ship (Extended)
-    this.escort = opts.escort // ^^ 
-    this.support = opts.support // ^^ 
+    this.main = opts.main ?? [] // api_get_member/deck[].api_ship (Extended)
+    this.escort = opts.escort ?? [] // ^^ 
+    this.support = opts.support ?? [] // ^^ 
     this.LBAC = opts.LBAC // api_get_member/base_air_corps (Extended)
   }
 }

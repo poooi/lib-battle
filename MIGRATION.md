@@ -7,9 +7,12 @@ the repo structure.
 ## Current State
 
 - Main sources live in the repo root: `index.ts`, `packet.ts`, `simulator.ts`.
-- `packet.ts` and `simulator.ts` currently use `// @ts-nocheck`.
+- `packet.ts` and `simulator.ts` compile without `// @ts-nocheck`.
 - Build uses `tsc` and emits JS + `.d.ts` next to sources.
-- Tests exist (vitest) and fixtures live under `tests/*.json`.
+- `tsconfig.json` uses `"strict": true`.
+- Tests exist (vitest) and fixtures live under `tests/fixtures/**/*.json`.
+- `global.d.ts` declares poi globals (`window.$ships`, `window.$slotitems`) as optional typed maps.
+- Simulator boundary types are largely composed from `kcsapi` endpoint types, with small local `*Like` shims where `kcsapi` is missing fields.
 
 ## Non-Goals / Constraints
 
@@ -42,19 +45,20 @@ progress can be repicked from the plan.
 
 - [x] Sync branch and confirm baseline (pushed `aafa702` to `origin/ts`)
 - [x] Hygiene: stop tracking build outputs (commit `cbb9b5c` removed tracked `index.js`)
-- [ ] Phase 1: type the public model layer (`packet.ts`) and remove `// @ts-nocheck` (in progress: Battle/Fleet typed; remaining models live in `simulator.ts`)
-- [ ] Phase 2: type simulator boundary inputs (`simulator.ts`) and narrow/remove `// @ts-nocheck`
-- [ ] Phase 3: remove global `window` assumptions via guarded helpers (in progress: $ships/$slotitems accessors)
-- [x] Phase 4a: add vitest smoke tests for existing repo fixtures (in progress: expanded to multiple fixtures; still needs invariants)
+- [x] Phase 1: type the public model layer (`packet.ts`) and remove `// @ts-nocheck`
+- [x] Phase 2: type simulator boundary inputs (`simulator.ts`) and remove `// @ts-nocheck`
+- [ ] Phase 3: remove global `window` assumptions via guarded helpers (in progress: typed poi globals + accessors)
+- [x] Phase 4a: add vitest smoke tests for existing repo fixtures (expanded to multiple fixtures)
+- [x] Store battle-detail fixtures as plain `.json` (drop `.json.gz`) (commit `418daa8`)
 - [ ] Phase 4b: add response-saver fixture ingestion + invariant-based tests (planned; see Test Strategy)
-- [ ] Phase 5 (optional): consider enabling `strict`
+- [x] Phase 5: enable `strict` and keep build/test green
 
 ### Phase 0: Keep Green Baseline
 
 Goal: keep `npm run build`, `npm run lint`, and `npm test` passing while typing
 is incrementally improved.
 
-- Keep `strict: false` for now.
+- Keep `strict: true` and fix typing at the boundary (prefer `unknown` + guards).
 - Add/keep minimal global declarations needed for `window` usage.
 
 ### Phase 1: Type The Public Model Layer (`packet.ts`)
@@ -104,7 +108,12 @@ Goal: avoid indexing `unknown` globals unsafely.
 
 - Replace `window.$ships` and `window.$slotitems` uses with narrow helper
   functions that validate shape at access-time.
-- Keep the global declarations permissive, but localize assertions.
+- Keep the global declarations minimal and optional, but localize assertions.
+
+Progress:
+
+- `global.d.ts` now types `window.$ships` / `window.$slotitems` (optional) and `simulator.ts` reads them via `getShipDb()` / `getSlotItemDb()`.
+- Remaining work is to add runtime shape checks (or switch helpers back to `unknown` + guards) so malformed poi globals cannot violate typing.
 
 Deliverable:
 
@@ -121,17 +130,19 @@ Goal: eliminate common bug classes without rewriting the simulator.
   where low-risk.
 - Add focused tests around tricky branches using the existing fixtures.
 
+Progress:
+
+- Added small runtime guards (`isRecord`) and reduced `as Record<string, unknown>` casts in a few hot paths.
+- Narrowed a subset of previously-`unknown` packet fields (`api_support_info`, `api_n_support_info`, `api_xal01`, `api_boss_damaged`) with local minimal types.
+
 Deliverable:
 
 - Simulator logic remains equivalent, but has stronger types and fewer implicit
   assumptions.
 
-### Phase 5 (Optional): Consider Enabling `strict`
+### Phase 5: Strict Mode
 
-Only after Phases 1-4 have landed and the surface area is typed.
-
-- Enable `strict` gradually (or selectively via `tsconfig` options) and fix
-  remaining hotspots.
+- Done: `tsconfig.json` uses `"strict": true`.
 
 ## Test Strategy (Lightweight)
 
@@ -206,3 +217,4 @@ from immutable fixture contents, not from the simulator implementation.
 - No `@ts-nocheck` in `packet.ts` or `simulator.ts`.
 - Build/lint/tests pass.
 - Public exports unchanged from the user's perspective.
+- Fixtures are committed as plain `.json` (no `.json.gz`).

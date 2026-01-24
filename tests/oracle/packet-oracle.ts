@@ -78,9 +78,16 @@ function stage3HitsForFleet(side: Side, dam: unknown, clFlag: unknown): OracleAe
   return hits
 }
 
-export function oracleAerialStage3(packet: any): OracleAerialPhase | null {
-  const kouku = packet?.api_kouku
-  const st3 = kouku?.api_stage3
+type Rec = Record<string, unknown>
+
+function asRec(v: unknown): Rec | null {
+  return v != null && typeof v === "object" ? (v as Rec) : null
+}
+
+export function oracleAerialStage3(packet: unknown): OracleAerialPhase | null {
+  const p = asRec(packet)
+  const kouku = asRec(p?.api_kouku)
+  const st3 = asRec(kouku?.api_stage3)
   if (!st3) return null
   const hits: OracleAerialHit[] = []
   hits.push(...stage3HitsForFleet("enemy", st3.api_edam, st3.api_ecl_flag))
@@ -88,11 +95,12 @@ export function oracleAerialStage3(packet: any): OracleAerialPhase | null {
   return { kind: "aerial_stage3", hits }
 }
 
-export function oracleLandBaseStage3(packet: any, idx: number): OracleAerialPhase | null {
-  const list = packet?.api_air_base_attack
+export function oracleLandBaseStage3(packet: unknown, idx: number): OracleAerialPhase | null {
+  const p = asRec(packet)
+  const list = p?.api_air_base_attack
   if (!Array.isArray(list)) return null
-  const kouku = list[idx]
-  const st3 = kouku?.api_stage3
+  const kouku = asRec(list[idx])
+  const st3 = asRec(kouku?.api_stage3)
   if (!st3) return null
   const hits: OracleAerialHit[] = []
   hits.push(...stage3HitsForFleet("enemy", st3.api_edam, st3.api_ecl_flag))
@@ -128,7 +136,7 @@ function zipTargetsDamageCl(targets: number[], damage: unknown, cl: unknown) {
   return out
 }
 
-export function oracleOpeningTorpedo(packet: any): OraclePhase | null {
+export function oracleOpeningTorpedo(packet: unknown): OraclePhase | null {
   // KanColle API arrays are 0-based but include a sentinel at index 0 in practice.
   // For stable comparison against the simulator, accept fleet lengths and filter
   // invalid indices/targets.
@@ -136,16 +144,17 @@ export function oracleOpeningTorpedo(packet: any): OraclePhase | null {
 }
 
 export function oracleClosingTorpedoWithLens(
-  packet: any,
+  packet: unknown,
   lens: { friendLen?: number; enemyLen?: number } = {},
 ): OraclePhase | null {
-  const raigeki = packet?.api_raigeki
+  const p = asRec(packet)
+  const raigeki = asRec(p?.api_raigeki)
   if (!raigeki) return null
 
   const frai = asNumberArray(raigeki.api_frai)
   const erai = asNumberArray(raigeki.api_erai)
-  const fydam = asNumberArray(raigeki.api_fydam ?? raigeki.api_fdam)
-  const eydam = asNumberArray(raigeki.api_eydam ?? raigeki.api_edam)
+  const fydam = asNumberArray((raigeki.api_fydam as unknown) ?? raigeki.api_fdam)
+  const eydam = asNumberArray((raigeki.api_eydam as unknown) ?? raigeki.api_edam)
   const fcl = asNumberArray(raigeki.api_fcl)
   const ecl = asNumberArray(raigeki.api_ecl)
 
@@ -187,10 +196,11 @@ export function oracleClosingTorpedoWithLens(
 }
 
 export function oracleOpeningTorpedoWithLens(
-  packet: any,
+  packet: unknown,
   lens: { friendLen?: number; enemyLen?: number } = {},
 ): OraclePhase | null {
-  const raigeki = packet?.api_opening_atack
+  const p = asRec(packet)
+  const raigeki = asRec(p?.api_opening_atack)
   if (!raigeki) return null
 
   const attacks: OracleAttack[] = []
@@ -249,8 +259,8 @@ export function oracleOpeningTorpedoWithLens(
   // Older opening torpedo uses flat arrays.
   const frai = asNumberArray(raigeki.api_frai)
   const erai = asNumberArray(raigeki.api_erai)
-  const fydam = asNumberArray(raigeki.api_fydam ?? raigeki.api_fdam)
-  const eydam = asNumberArray(raigeki.api_eydam ?? raigeki.api_edam)
+  const fydam = asNumberArray((raigeki.api_fydam as unknown) ?? raigeki.api_fdam)
+  const eydam = asNumberArray((raigeki.api_eydam as unknown) ?? raigeki.api_edam)
   const fcl = asNumberArray(raigeki.api_fcl)
   const ecl = asNumberArray(raigeki.api_ecl)
 
@@ -292,8 +302,9 @@ export function oracleOpeningTorpedoWithLens(
   return { kind: "opening_torpedo", attacks }
 }
 
-export function oracleNightHougekiFriend(packet: any, lens: { mainFleetLen: number }): OracleAttack[] {
-  const hougeki = packet?.api_hougeki
+export function oracleNightHougekiFriend(packet: unknown, lens: { mainFleetLen: number }): OracleAttack[] {
+  const p = asRec(packet)
+  const hougeki = asRec(p?.api_hougeki)
   if (!hougeki) return []
 
   const atList = asNumberArray(hougeki.api_at_list)
@@ -309,8 +320,8 @@ export function oracleNightHougekiFriend(packet: any, lens: { mainFleetLen: numb
 
     const df = dfList[i]
     if (!Array.isArray(df) || df.length === 0) continue
-    const df0 = df.find((x: any) => typeof x === "number" && x >= 0)
-    if (typeof df0 !== "number") continue
+  const df0 = df.find((x: unknown) => typeof x === "number" && x >= 0)
+  if (typeof df0 !== "number") continue
 
     // In api_hougeki without api_at_eflag, the simulator infers direction from df.
     // We only validate our-side attacks here.
@@ -339,8 +350,9 @@ export function oracleNightHougekiFriend(packet: any, lens: { mainFleetLen: numb
   return attacks
 }
 
-export function oracleShelling(packet: any, key: string): OraclePhase | null {
-  const hougeki = packet?.[key]
+export function oracleShelling(packet: unknown, key: string): OraclePhase | null {
+  const p = asRec(packet)
+  const hougeki = asRec(p?.[key])
   if (!hougeki) return null
 
   // Only validate our-side attacks for now (matches current usage in tests).
@@ -363,7 +375,7 @@ export function oracleShelling(packet: any, key: string): OraclePhase | null {
     if (typeof df === "number") {
       if (df >= 0) targets = [df]
     } else if (Array.isArray(df)) {
-      targets = df.filter((x: any) => typeof x === "number" && x >= 0)
+      targets = df.filter((x: unknown) => typeof x === "number" && x >= 0)
     }
     if (targets.length === 0) continue
 
@@ -401,8 +413,10 @@ export function oracleShelling(packet: any, key: string): OraclePhase | null {
   return { kind: key === "api_hougeki" ? "night_shelling" : "shelling", attacks }
 }
 
-export function oracleFriendlyNightShelling(packet: any): OraclePhase | null {
-  const hougeki = packet?.api_friendly_battle?.api_hougeki
+export function oracleFriendlyNightShelling(packet: unknown): OraclePhase | null {
+  const p = asRec(packet)
+  const friendly = asRec(p?.api_friendly_battle)
+  const hougeki = asRec(friendly?.api_hougeki)
   if (!hougeki) return null
 
   const atList = asNumberArray(hougeki.api_at_list)
@@ -420,7 +434,7 @@ export function oracleFriendlyNightShelling(packet: any): OraclePhase | null {
     if (typeof df === "number") {
       if (df >= 0) targets = [df]
     } else if (Array.isArray(df)) {
-      targets = df.filter((x: any) => typeof x === "number" && x >= 0)
+      targets = df.filter((x: unknown) => typeof x === "number" && x >= 0)
     }
     if (targets.length === 0) continue
 

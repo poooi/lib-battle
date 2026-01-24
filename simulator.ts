@@ -1,5 +1,13 @@
 type Param4 = [number, number, number, number]
 
+function toParam4(v: number[] | undefined): Param4 {
+  return [v?.[0] ?? 0, v?.[1] ?? 0, v?.[2] ?? 0, v?.[3] ?? 0]
+}
+
+function param4(a = 0, b = 0, c = 0, d = 0): Param4 {
+  return [a, b, c, d]
+}
+
 import type { Battle, Fleet } from "./packet"
 
 import type {
@@ -73,9 +81,15 @@ type RawFleetShip = {
   api_soukou: number[]
 }
 
+type Obj = Record<string, unknown>
+
+function isRecord(v: unknown): v is Obj {
+  return typeof v === "object" && v !== null
+}
+
 function isRawFleetShip(ship: unknown): ship is RawFleetShip {
-  if (typeof ship !== "object" || ship === null) return false
-  const s = ship as Record<string, unknown>
+  if (!isRecord(ship)) return false
+  const s = ship
   return (
     typeof s.api_ship_id === "number" &&
     typeof s.api_maxhp === "number" &&
@@ -111,6 +125,11 @@ type BattlePacket = {
   api_nowhps_combined?: number[]
 
   api_midnight_flag?: number
+  api_formation?: number[]
+  api_search?: number[]
+  api_flare_pos?: number[]
+  api_touch_plane?: Array<number | string>
+  api_active_deck?: number[]
   api_stage_flag?: number[]
   api_stage_flag2?: number[]
   api_opening_flag?: number
@@ -139,18 +158,23 @@ type BattlePacket = {
   api_friendly_battle?: APIFriendlyBattle
 
   // night-to-day
-  api_n_support_info?: unknown
+  api_n_support_info?: ApiSupportInfoLike | null
   api_n_support_flag?: number
   api_n_hougeki1?: ApiHougeki | null
   api_n_hougeki2?: ApiHougeki | null
 
-  api_support_info?: unknown
+  api_support_info?: ApiSupportInfoLike | null
 
   api_win_rank?: string
   api_mvp?: number
   api_mvp_combined?: number
   api_get_ship?: { api_ship_id?: number }
   api_get_useitem?: { api_useitem_id?: number }
+
+  // event weaken / smoke
+  api_boss_damaged?: number
+  api_xal01?: number
+  api_smoke_type?: number
 }
 
 type ApiAirBaseAttack =
@@ -176,12 +200,27 @@ type ApiHougeki = PracticeHougeki | SortieBattleHougeki | CombinedBattleHougeki 
 
 type ApiNightHougeki = MidnightHougeki | EcMidnightHougeki
 
+type ApiOpeningRaigeki = ApiRaigeki & {
+  api_frai_list_items?: number[][]
+  api_fydam_list_items?: number[][]
+  api_fcl_list_items?: number[][]
+  api_erai_list_items?: number[][]
+  api_eydam_list_items?: number[][]
+  api_ecl_list_items?: number[][]
+}
+
+// Some endpoints are missing/incorrect in kcsapi (notably night-to-day support).
+// Keep the surface small and narrow at usage sites.
+type ApiSupportInfoLike = {
+  api_support_airatack?: { api_stage3?: AerialStage3Like | null } | null
+  api_support_hourai?: { api_damage?: number[]; api_cl_list?: number[] } | null
+}
+
 function isBattlePacket(packet: unknown): packet is BattlePacket {
   return (
-    typeof packet === "object" &&
-    packet !== null &&
+    isRecord(packet) &&
     "poi_path" in packet &&
-    typeof (packet as { poi_path: unknown }).poi_path === "string"
+    typeof packet.poi_path === "string"
   )
 }
 
@@ -190,34 +229,18 @@ type EngagementInfoOptions2 = {
   night?: boolean
 }
 
-type ShipDbEntry = {
-  api_houg: [number]
-  api_raig: [number]
-  api_tyku: [number]
-  api_souk: [number]
-}
+type ShipArray = Array<Ship | null>
+type ShipArrayish = ShipArray | null | undefined
 
-type ShipDb = Record<number, ShipDbEntry>
-
-type SlotItem = {
-  api_houg?: number
-  api_raig?: number
-  api_tyku?: number
-  api_souk?: number
-}
-
-type SlotItemDb = Record<number, SlotItem>
+type ShipDb = NonNullable<Window["$ships"]>
+type SlotItemDb = NonNullable<Window["$slotitems"]>
 
 function getShipDb(): ShipDb {
-  const ships = window.$ships
-  if (ships == null || typeof ships !== "object") return {}
-  return ships as ShipDb
+  return window.$ships ?? {}
 }
 
 function getSlotItemDb(): SlotItemDb {
-  const items = window.$slotitems
-  if (items == null || typeof items !== "object") return {}
-  return items as SlotItemDb
+  return window.$slotitems ?? {}
 }
 
 export interface StageOptions {
@@ -447,7 +470,7 @@ export interface AerialInfoOptions {
   ePlaneNow1?: number
   aaciKind?: number
   aaciShip?: Ship | null
-  aaciItems?: unknown
+  aaciItems?: number[]
   fPlaneInit2?: number
   fPlaneNow2?: number
   ePlaneInit2?: number
@@ -468,7 +491,7 @@ export class AerialInfo {
   ePlaneNow1: number | undefined
   aaciKind: number | undefined
   aaciShip: Ship | null | undefined
-  aaciItems: unknown
+  aaciItems: number[] | undefined
   fPlaneInit2: number | undefined
   fPlaneNow2: number | undefined
   ePlaneInit2: number | undefined
@@ -518,7 +541,7 @@ export interface EngagementInfoOptions {
   eContact?: number | null
   fFlare?: Ship | null
   eFlare?: Ship | null
-  weakened?: unknown
+  weakened?: number
   smokeType?: number
 }
 
@@ -532,7 +555,7 @@ export class EngagementInfo {
   eContact: number | null | undefined
   fFlare: Ship | null | undefined
   eFlare: Ship | null | undefined
-  weakened: unknown
+  weakened: number | undefined
   smokeType: number | undefined
 
   constructor(opts: EngagementInfoOptions = {}) {
@@ -671,7 +694,7 @@ export const NightAttackTypeMap = {
   1000: AttackType.Type_4_LC_Special_Attack,
 }
 // api_stage1.api_disp_seiku => ~
-export const AirControlMap = {
+export const AirControlMap: Record<number, AirControl> = {
   0: AirControl.Parity,
   1: AirControl.Supremacy,
   2: AirControl.Superiority,
@@ -679,7 +702,7 @@ export const AirControlMap = {
   4: AirControl.Incapability,
 }
 // api_search[] => ~
-export const DetectionMap = {
+export const DetectionMap: Record<number, Detection> = {
   1: Detection.Success,
   2: Detection.SuccessNR,
   3: Detection.FailureNR,
@@ -688,7 +711,7 @@ export const DetectionMap = {
   6: Detection.FailureNP,
 }
 // api_formation[0,1] => ~
-export const FormationMap = {
+export const FormationMap: Record<number, Formation> = {
   1: Formation.Ahead,
   2: Formation.Double,
   3: Formation.Diamond,
@@ -701,20 +724,20 @@ export const FormationMap = {
   14: Formation.CruisingBattle,
 }
 // api_formation[2] => ~
-export const EngagementMap = {
+export const EngagementMap: Record<number, Engagement> = {
   1: Engagement.Parallel,
   2: Engagement.Headon,
   3: Engagement.TAdvantage,
   4: Engagement.TDisadvantage,
 }
 // api_support_flag => ~
-export const SupportTypeMap = {
+export const SupportTypeMap: Record<number, StageType> = {
   1: StageType.Aerial,
   2: StageType.Shelling,
   3: StageType.Torpedo,
 }
 // api_win_rank => ~
-export const BattleRankMap = {
+export const BattleRankMap: Record<string, Rank> = {
   'SS': Rank.SS,
   'S': Rank.S,
   'A': Rank.A,
@@ -728,7 +751,7 @@ const HalfSunkNumber = [  // 7~12 is guessed.
   0, 1, 1, 2, 2, 3, 4, 4, 5, 6, 7, 7, 8,
 ]
 
-function useItem(ship) {
+function useItem(ship: Ship): number | null {
   if (ship.owner === ShipOwner.Ours && ship.nowHP <= 0 && ship.items != null)
     for (const itemId of ship.items) {
       // 応急修理要員
@@ -745,7 +768,7 @@ function useItem(ship) {
   return null
 }
 
-function damageShip(fromShip, toShip, damage) {
+function damageShip(fromShip: Ship | null, toShip: Ship | null, damage: number) {
   if (toShip == null) {
     // Some legacy records contain invalid target indices.
     return {fromHP: 0, toHP: 0, item: null}
@@ -766,71 +789,142 @@ function damageShip(fromShip, toShip, damage) {
   return {fromHP, toHP, item}
 }
 
-function preventNullObject(o) {
+function preventNullObject<T extends object>(o: T): T | null {
   // Prevent returning Object with all properties null.
   let isNull = true
   for (const k of Object.keys(o)) {
-    isNull = isNull && o[k] == null
+    isNull = isNull && (o as Obj)[k] == null
   }
   return isNull ? null : o
 }
 
-function generateAerialInfo(kouku, mainFleet, escortFleet) {
-  if (!(kouku != null))
-    return
+type AerialStage1Like = {
+  api_disp_seiku?: number
+  api_f_count?: number
+  api_f_lostcount?: number
+  api_e_count?: number
+  api_e_lostcount?: number
+  api_touch_plane?: number[]
+}
 
-  const stage1 = kouku.api_stage1
-  const stage2 = kouku.api_stage2
+type AerialStage2Like = {
+  api_f_count?: number
+  api_f_lostcount?: number
+  api_e_count?: number
+  api_e_lostcount?: number
+  api_air_fire?: {
+    api_idx: number
+    api_kind: number
+    api_use_items: number[]
+  }
+}
+
+type AerialStage3Like = {
+  api_ebak_flag: number[]
+  api_ecl_flag: number[]
+  api_edam: number[]
+  api_erai_flag: number[]
+  api_fbak_flag?: number[] | null
+  api_fcl_flag?: number[] | null
+  api_fdam?: number[] | null
+  api_frai_flag?: number[] | null
+}
+
+type AerialStage3Carrier = {
+  api_stage3?: AerialStage3Like | null
+  api_stage3_combined?: AerialStage3Like | null
+}
+
+function generateAerialInfo(
+  kouku:
+    | ApiKouku
+    | ApiInjectionKouku
+    | ApiAirBaseAttack
+    | { api_stage1?: unknown; api_stage2?: unknown }
+    | { api_stage1?: unknown; api_stage2?: unknown; api_stage3?: unknown }
+    | null
+    | undefined,
+  mainFleet: ShipArray | null | undefined,
+  escortFleet: ShipArray | null | undefined,
+): AerialInfo | null {
+  if (kouku == null)
+    return null
+
+  const mainFleetShips = mainFleet ?? []
+  const escortFleetShips = escortFleet ?? []
+
+  const stage1 = ("api_stage1" in kouku ? (kouku as { api_stage1?: AerialStage1Like | null }).api_stage1 : null) ?? null
+  const stage2 = ("api_stage2" in kouku ? (kouku as { api_stage2?: AerialStage2Like | null }).api_stage2 : null) ?? null
   const o = new AerialInfo({})
   let fPlaneLost = 0, ePlaneLost = 0
 
   // Stage 1
   if (stage1 != null) {
     const contact = stage1.api_touch_plane || [-1, -1]
-    o.control  = AirControlMap[stage1.api_disp_seiku]
-    o.fContact = contact[0] > 0 ? contact[0] : null
-    o.eContact = contact[1] > 0 ? contact[1] : null
-    o.fPlaneInit1 = stage1.api_f_count
-    o.fPlaneNow1  = stage1.api_f_count - stage1.api_f_lostcount
-    o.ePlaneInit1 = stage1.api_e_count
-    o.ePlaneNow1  = stage1.api_e_count - stage1.api_e_lostcount
-    fPlaneLost += stage1.api_f_lostcount
-    ePlaneLost += stage1.api_e_lostcount
+    if (typeof stage1.api_disp_seiku === "number") {
+      o.control = AirControlMap[stage1.api_disp_seiku as keyof typeof AirControlMap]
+    }
+    o.fContact = typeof contact[0] === "number" && contact[0] > 0 ? contact[0] : null
+    o.eContact = typeof contact[1] === "number" && contact[1] > 0 ? contact[1] : null
+
+    const fCount = stage1.api_f_count ?? 0
+    const fLost = stage1.api_f_lostcount ?? 0
+    const eCount = stage1.api_e_count ?? 0
+    const eLost = stage1.api_e_lostcount ?? 0
+    o.fPlaneInit1 = fCount
+    o.fPlaneNow1  = fCount - fLost
+    o.ePlaneInit1 = eCount
+    o.ePlaneNow1  = eCount - eLost
+    fPlaneLost += fLost
+    ePlaneLost += eLost
   }
   // Stage 2
   if (stage2 != null) {
-    const airfire = kouku.api_stage2.api_air_fire
+    const airfire = stage2.api_air_fire
     if (airfire != null) {
       let ship = null, idx = airfire.api_idx
-      const mainFleetRange = mainFleet.length
-      if (0 <= idx && idx <= mainFleetRange)  ship = mainFleet[idx]
-      if (mainFleetRange <= idx) ship = escortFleet[idx - mainFleetRange]
+      const mainFleetRange = mainFleetShips.length
+      if (0 <= idx && idx <= mainFleetRange) ship = mainFleetShips[idx] ?? null
+      if (mainFleetRange <= idx) ship = escortFleetShips[idx - mainFleetRange] ?? null
       o.aaciKind = airfire.api_kind
       o.aaciShip = ship
       o.aaciItems = airfire.api_use_items
     }
-    o.fPlaneInit2 = stage2.api_f_count
-    o.fPlaneNow2  = stage2.api_f_count - stage2.api_f_lostcount
-    o.ePlaneInit2 = stage2.api_e_count
-    o.ePlaneNow2  = stage2.api_e_count - stage2.api_e_lostcount
-    fPlaneLost += stage2.api_f_lostcount
-    ePlaneLost += stage2.api_e_lostcount
+    const fCount = stage2.api_f_count ?? 0
+    const fLost = stage2.api_f_lostcount ?? 0
+    const eCount = stage2.api_e_count ?? 0
+    const eLost = stage2.api_e_lostcount ?? 0
+    o.fPlaneInit2 = fCount
+    o.fPlaneNow2  = fCount - fLost
+    o.ePlaneInit2 = eCount
+    o.ePlaneNow2  = eCount - eLost
+    fPlaneLost += fLost
+    ePlaneLost += eLost
   }
   // Summary
   // We assume stage2 won't exist without stage1
   if (stage1 != null) {
-    o.fPlaneInit = stage1.api_f_count
-    o.fPlaneNow  = stage1.api_f_count - fPlaneLost
-    o.ePlaneInit = stage1.api_e_count
-    o.ePlaneNow  = stage1.api_e_count - ePlaneLost
+    const fCount = stage1.api_f_count ?? 0
+    const eCount = stage1.api_e_count ?? 0
+    o.fPlaneInit = fCount
+    o.fPlaneNow  = fCount - fPlaneLost
+    o.ePlaneInit = eCount
+    o.ePlaneNow  = eCount - ePlaneLost
   }
 
   return preventNullObject(o)
 }
 
-function generateEngagementInfo(packet, oursFleet, emenyFleet, opts: EngagementInfoOptions2 = {}) {
+function generateEngagementInfo(
+  packet: BattlePacket | null | undefined,
+  oursFleet: ShipArrayish,
+  emenyFleet: ShipArrayish,
+  opts: EngagementInfoOptions2 = {},
+): EngagementInfo | null {
   if (!(packet != null))
-    return
+    return null
+  const ourFleetShips = oursFleet ?? []
+  const enemyFleetShips = emenyFleet ?? []
   opts = {...{engagement: false, night: false}, ...opts}
 
   const o = new EngagementInfo({})
@@ -839,17 +933,22 @@ function generateEngagementInfo(packet, oursFleet, emenyFleet, opts: EngagementI
     // Battle Engagement
     const {api_formation, api_search} = packet
     if (api_formation != null) {
-      o.engagement = EngagementMap[api_formation[2]]
-      o.fFormation = FormationMap[api_formation[0]]
-      o.eFormation = FormationMap[api_formation[1]]
+      const engagementKey = api_formation[2]
+      const fFormationKey = api_formation[0]
+      const eFormationKey = api_formation[1]
+      if (typeof engagementKey === "number") o.engagement = EngagementMap[engagementKey]
+      if (typeof fFormationKey === "number") o.fFormation = FormationMap[fFormationKey]
+      if (typeof eFormationKey === "number") o.eFormation = FormationMap[eFormationKey]
     }
     if (api_search != null) {
-      o.fDetection = DetectionMap[api_search[0]]
-      o.eDetection = DetectionMap[api_search[1]]
+      const fDetectionKey = api_search[0]
+      const eDetectionKey = api_search[1]
+      if (typeof fDetectionKey === "number") o.fDetection = DetectionMap[fDetectionKey]
+      if (typeof eDetectionKey === "number") o.eDetection = DetectionMap[eDetectionKey]
     }
     // Weaken mechanism
     const {api_boss_damaged, api_xal01} = packet
-    o.weakened = [api_boss_damaged, api_xal01].find(x => x != null)
+    o.weakened = [api_boss_damaged, api_xal01].find((x) => x != null)
     // Carry over smoke_type
     const {api_smoke_type} = packet
     // old records doesn't have this key, unifying to 0.
@@ -865,26 +964,35 @@ function generateEngagementInfo(packet, oursFleet, emenyFleet, opts: EngagementI
       o.eContact = plane[1] > 0 ? plane[1] : null
     }
     if (api_flare_pos != null) {
-      o.fFlare   =  oursFleet[api_flare_pos[0]]
-      o.eFlare   = emenyFleet[api_flare_pos[1]]
+      o.fFlare   =  ourFleetShips[api_flare_pos[0]]
+      o.eFlare   =  enemyFleetShips[api_flare_pos[1]]
     }
   }
 
   return preventNullObject(o)
 }
 
-function simulateAerialAttack(fleet, edam, ebak_flag, erai_flag, ecl_flag) {
-  if (!(fleet != null && edam != null)) {
-    return []
-  }
-  const list = []
-  for (let [i, damage] of edam.entries()) {
-    if ((damage < 0) || (ebak_flag[i] <= 0 && erai_flag[i] <= 0))
+function simulateAerialAttack(
+  fleet: ShipArrayish,
+  edam: number[] | null | undefined,
+  ebak_flag: number[] | null | undefined,
+  erai_flag: number[] | null | undefined,
+  ecl_flag: number[] | null | undefined,
+): Attack[] {
+  const targetFleetShips = fleet ?? []
+  const dam = edam ?? []
+  const bak = ebak_flag ?? []
+  const rai = erai_flag ?? []
+  const cl = ecl_flag ?? []
+
+  const list: Attack[] = []
+  for (let [i, damage] of dam.entries()) {
+    if ((damage < 0) || ((bak[i] ?? 0) <= 0 && (rai[i] ?? 0) <= 0))
       continue
     damage = Math.floor(damage)
-    let toShip = fleet[i]
-    let hit = (ecl_flag[i] === 1 ? HitType.Critical : (damage > 0 ? HitType.Hit : HitType.Miss))
-    let {fromHP, toHP, item} = damageShip(null, toShip, damage)
+    const toShip = targetFleetShips[i] ?? null
+    const hit = (cl[i] === 1 ? HitType.Critical : (damage > 0 ? HitType.Hit : HitType.Miss))
+    const {fromHP, toHP, item} = damageShip(null, toShip, damage)
     list.push(new Attack({
       type    : AttackType.Normal,
       toShip  : toShip,
@@ -898,22 +1006,43 @@ function simulateAerialAttack(fleet, edam, ebak_flag, erai_flag, ecl_flag) {
   return list
 }
 
-function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku, assault=false) {
-  if (!(kouku != null)) {
-    return
+function simulateAerial(
+  mainFleet: ShipArrayish,
+  escortFleet: ShipArrayish,
+  enemyFleet: ShipArrayish,
+  enemyEscort: ShipArrayish,
+  kouku:
+    | ApiKouku
+    | ApiInjectionKouku
+    | ApiAirBaseAttack
+    | AerialStage3Carrier
+    | null
+    | undefined,
+  assault=false,
+): Stage | null {
+  if (kouku == null)
+    return null
+
+  const mainFleetShips = mainFleet ?? []
+  const escortFleetShips = escortFleet ?? []
+  const enemyMainShips = enemyFleet ?? []
+  const enemyEscortShips = enemyEscort ?? []
+
+  const carrier = kouku as AerialStage3Carrier
+  const stage3 = carrier.api_stage3 ?? null
+  const stage3Combined = carrier.api_stage3_combined ?? null
+
+  let attacks: Attack[] = []
+  if (stage3 != null) {
+    attacks = attacks.concat(simulateAerialAttack(enemyMainShips, stage3.api_edam, stage3.api_ebak_flag, stage3.api_erai_flag, stage3.api_ecl_flag))
+    attacks = attacks.concat(simulateAerialAttack(mainFleetShips, stage3.api_fdam, stage3.api_fbak_flag, stage3.api_frai_flag, stage3.api_fcl_flag))
   }
-  let attacks = []
-  if (kouku.api_stage3 != null) {
-    const st3 = kouku.api_stage3
-    attacks = attacks.concat(simulateAerialAttack(enemyFleet, st3.api_edam, st3.api_ebak_flag, st3.api_erai_flag, st3.api_ecl_flag))
-    attacks = attacks.concat(simulateAerialAttack(mainFleet, st3.api_fdam, st3.api_fbak_flag, st3.api_frai_flag, st3.api_fcl_flag))
+  if (stage3Combined != null) {
+    attacks = attacks.concat(simulateAerialAttack(enemyEscortShips, stage3Combined.api_edam, stage3Combined.api_ebak_flag, stage3Combined.api_erai_flag, stage3Combined.api_ecl_flag))
+    attacks = attacks.concat(simulateAerialAttack(escortFleetShips, stage3Combined.api_fdam, stage3Combined.api_fbak_flag, stage3Combined.api_frai_flag, stage3Combined.api_fcl_flag))
   }
-  if (kouku.api_stage3_combined != null) {
-    const st3 = kouku.api_stage3_combined
-    attacks = attacks.concat(simulateAerialAttack(enemyEscort, st3.api_edam, st3.api_ebak_flag, st3.api_erai_flag, st3.api_ecl_flag))
-    attacks = attacks.concat(simulateAerialAttack(escortFleet, st3.api_fdam, st3.api_fbak_flag, st3.api_frai_flag, st3.api_fcl_flag))
-  }
-  let aerial = generateAerialInfo(kouku, mainFleet, escortFleet)
+
+  const aerial = generateAerialInfo(kouku, mainFleetShips, escortFleetShips)
   return new Stage({
     type   : StageType.Aerial,
     subtype: assault ? StageType.Assault : null,
@@ -923,34 +1052,45 @@ function simulateAerial(mainFleet, escortFleet, enemyFleet, enemyEscort, kouku, 
   })
 }
 
-function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, eydam, erai, ecl) {
-  if (!(enemyFleet != null && eydam != null && erai != null && ecl != null)) {
-    return []
-  }
-  // Normal-fleet battles can pass `null` escorts.
-  escortFleet = escortFleet || []
-  enemyEscort = enemyEscort || []
-  const list = []
-  for (let [i, t] of erai.entries()) {
-    let fromShip, toShip
-    const mainFleetRange = mainFleet.length
-    const enemyFleetRange = enemyFleet.length
+function simulateTorpedoAttack(
+  mainFleet: ShipArrayish,
+  escortFleet: ShipArrayish,
+  enemyFleet: ShipArrayish,
+  enemyEscort: ShipArrayish,
+  eydam: number[] | null | undefined,
+  erai: number[] | null | undefined,
+  ecl: number[] | null | undefined,
+): Attack[] {
+  const mainFleetShips = mainFleet ?? []
+  const escortFleetShips = escortFleet ?? []
+  const enemyMainShips = enemyFleet ?? []
+  const enemyEscortShips = enemyEscort ?? []
+  const dam = eydam ?? []
+  const rai = erai ?? []
+  const cl = ecl ?? []
+
+  const list: Attack[] = []
+  for (let [i, t] of rai.entries()) {
+    let fromShip: Ship | null | undefined
+    let toShip: Ship | null | undefined
+    const mainFleetRange = mainFleetShips.length
+    const enemyFleetRange = enemyMainShips.length
     if (i < 0 || t < 0) continue
-    if (eydam[i] == null || ecl[i] == null) continue
+    if (dam[i] == null || cl[i] == null) continue
     if (i < mainFleetRange) {
-      fromShip = mainFleet[i]
+      fromShip = mainFleetShips[i]
     } else {
-      fromShip = escortFleet[i - mainFleetRange]
+      fromShip = escortFleetShips[i - mainFleetRange]
     }
     if (fromShip == null) continue
     if (t < enemyFleetRange) {
-      toShip = enemyFleet[t]
+      toShip = enemyMainShips[t]
     } else {
-      toShip = enemyEscort[t - enemyFleetRange]
+      toShip = enemyEscortShips[t - enemyFleetRange]
     }
     if (toShip == null) continue
-    let damage = Math.floor(eydam[i])
-    let hit = (ecl[i] === 2 ? HitType.Critical : (ecl[i] === 1 ? HitType.Hit : HitType.Miss))
+    const damage = Math.floor(dam[i])
+    const hit = (cl[i] === 2 ? HitType.Critical : (cl[i] === 1 ? HitType.Hit : HitType.Miss))
     let {fromHP, toHP, item} = damageShip(fromShip, toShip, damage)
     list.push(new Attack({
       type    : AttackType.Normal,
@@ -966,29 +1106,40 @@ function simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, 
   return list
 }
 
-function simulateOpeningTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort, eydamList, eraiList, eclList) {
-  if (!(enemyFleet != null && eydamList != null)) {
-    return []
-  }
-  // Normal-fleet battles can pass `null` escorts.
-  escortFleet = escortFleet || []
-  enemyEscort = enemyEscort || []
-  const list = []
-  for (let [i, tList] of eraiList.entries()) {
-    let fromShip, toShip
-    const mainFleetRange = mainFleet.length
-    const enemyFleetRange = enemyFleet.length
+function simulateOpeningTorpedoAttack(
+  mainFleet: ShipArrayish,
+  escortFleet: ShipArrayish,
+  enemyFleet: ShipArrayish,
+  enemyEscort: ShipArrayish,
+  eydamList: number[][] | null | undefined,
+  eraiList: number[][] | null | undefined,
+  eclList: number[][] | null | undefined,
+): Attack[] {
+  const mainFleetShips = mainFleet ?? []
+  const escortFleetShips = escortFleet ?? []
+  const enemyMainShips = enemyFleet ?? []
+  const enemyEscortShips = enemyEscort ?? []
+  const dam = eydamList ?? []
+  const rai = eraiList ?? []
+  const cl = eclList ?? []
+
+  const list: Attack[] = []
+  for (let [i, tList] of rai.entries()) {
+    let fromShip: Ship | null | undefined
+    let toShip: Ship | null | undefined
+    const mainFleetRange = mainFleetShips.length
+    const enemyFleetRange = enemyMainShips.length
     if (i < 0 || tList == null) continue
-    if (i < mainFleetRange) fromShip = mainFleet[i]
-    else fromShip = escortFleet[i - mainFleetRange]
+    if (i < mainFleetRange) fromShip = mainFleetShips[i]
+    else fromShip = escortFleetShips[i - mainFleetRange]
     if (fromShip == null) continue
     for (let [j, t] of tList.entries()) {
       if (t < 0) continue
-      if (t < enemyFleetRange) toShip = enemyFleet[t]
-      else toShip = enemyEscort[t - enemyFleetRange]
+      if (t < enemyFleetRange) toShip = enemyMainShips[t]
+      else toShip = enemyEscortShips[t - enemyFleetRange]
       if (toShip == null) continue
-      let damage = Math.floor(eydamList[i][j])
-      let hit = (eclList[i][j] === 2 ? HitType.Critical : (eclList[i][j] === 1 ? HitType.Hit : HitType.Miss))
+      const damage = Math.floor(dam[i]?.[j] ?? 0)
+      const hit = (cl[i]?.[j] === 2 ? HitType.Critical : (cl[i]?.[j] === 1 ? HitType.Hit : HitType.Miss))
       let {fromHP, toHP, item} = damageShip(fromShip, toShip, damage)
       list.push(new Attack({
         type    : AttackType.Normal,
@@ -1005,11 +1156,18 @@ function simulateOpeningTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyE
   return list
 }
 
-function simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigeki, subtype?) {
+function simulateTorpedo(
+  mainFleet: Array<Ship | null> | null | undefined,
+  escortFleet: Array<Ship | null> | null | undefined,
+  enemyFleet: Array<Ship | null> | null | undefined,
+  enemyEscort: Array<Ship | null> | null | undefined,
+  raigeki: ApiRaigeki | null | undefined,
+  subtype?: StageType,
+): Stage | null {
   if (!(raigeki != null)) {
-    return
+    return null
   }
-  let attacks = []
+  let attacks: Attack[] = []
   if (raigeki.api_frai != null)
     attacks = attacks.concat(simulateTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort,
       (raigeki.api_fydam != null ? raigeki.api_fydam : raigeki.api_fdam), raigeki.api_frai, raigeki.api_fcl))
@@ -1023,15 +1181,22 @@ function simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigek
   })
 }
 
-function simulateOpeningTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigeki, subtype?) {
+function simulateOpeningTorpedo(
+  mainFleet: Array<Ship | null> | null | undefined,
+  escortFleet: Array<Ship | null> | null | undefined,
+  enemyFleet: Array<Ship | null> | null | undefined,
+  enemyEscort: Array<Ship | null> | null | undefined,
+  raigeki: ApiOpeningRaigeki | null | undefined,
+  subtype?: StageType,
+): Stage | null {
   if (!(raigeki != null)) {
-    return
+    return null
   }
   if (raigeki.api_frai != null) {
     // Backward compatibility
     return simulateTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort, raigeki, subtype)
   }
-  let attacks = []
+  let attacks: Attack[] = []
   if (raigeki.api_frai_list_items != null)
     attacks = attacks.concat(simulateOpeningTorpedoAttack(mainFleet, escortFleet, enemyFleet, enemyEscort,
       raigeki.api_fydam_list_items, raigeki.api_frai_list_items, raigeki.api_fcl_list_items))
@@ -1045,21 +1210,38 @@ function simulateOpeningTorpedo(mainFleet, escortFleet, enemyFleet, enemyEscort,
   })
 }
 
-function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, hougeki, subtype?) {
+function simulateShelling(
+  mainFleet: ShipArrayish,
+  escortFleet: ShipArrayish,
+  enemyFleet: ShipArrayish,
+  enemyEscort: ShipArrayish,
+  hougeki: ApiHougeki | ApiNightHougeki | null | undefined,
+  subtype?: StageType,
+): Stage | null {
   if (!(hougeki != null)) {
-    return
+    return null
   }
-  const isNight = (subtype == StageType.Night)
-  const list = []
-  const mainFleetRange = mainFleet.length
-  const enemyFleetRange = enemyFleet.length
+  const mainFleetShips = mainFleet ?? []
+  const escortFleetShips = escortFleet ?? []
+  const enemyMainShips = enemyFleet ?? []
+  const enemyEscortShips = enemyEscort ?? []
+  const isNight = subtype === StageType.Night
+  const list: Attack[] = []
+  const mainFleetRange = mainFleetShips.length
+  const enemyFleetRange = enemyMainShips.length
   for (let [i, attacker] of (hougeki.api_at_list || []).entries()) {
     if (attacker === -1) continue
-    let attackType = isNight ? NightAttackTypeMap[hougeki.api_sp_list[i]] : DayAttackTypeMap[hougeki.api_at_type[i]]
+    const spList = (hougeki as { api_sp_list?: number[] }).api_sp_list
+    const atType = (hougeki as { api_at_type?: number[] }).api_at_type
+    const spKey = spList?.[i] ?? 0
+    const atKey = atType?.[i] ?? 0
+    let attackType: AttackType = isNight
+      ? (NightAttackTypeMap[spKey as keyof typeof NightAttackTypeMap] ?? AttackType.Normal)
+      : (DayAttackTypeMap[atKey as keyof typeof DayAttackTypeMap] ?? AttackType.Normal)
     let at = attacker
     if (!MultiTargetAttackType.has(attackType)) {
-      let df, fromEnemy  // Declare ahead
-      df = hougeki.api_df_list[i][0] // Defender
+      let df = hougeki.api_df_list[i][0] // Defender
+      let fromEnemy: boolean
       if (hougeki.api_at_eflag != null) {
         fromEnemy = hougeki.api_at_eflag[i] === 1
       } else {
@@ -1067,13 +1249,14 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
         if (at >= mainFleetRange) at -= mainFleetRange
         if (df >= mainFleetRange) df -= mainFleetRange
       }
-      let fromShip, toShip
+      let fromShip: Ship | null | undefined
+      let toShip: Ship | null | undefined
       if (fromEnemy) {
-        fromShip = at < enemyFleetRange ? enemyFleet[at] : enemyEscort[at - enemyFleetRange]
-        toShip   = df < mainFleetRange ? mainFleet[df]  : escortFleet[df - mainFleetRange]
+        fromShip = at < enemyFleetRange ? enemyMainShips[at] : enemyEscortShips[at - enemyFleetRange]
+        toShip   = df < mainFleetRange ? mainFleetShips[df]  : escortFleetShips[df - mainFleetRange]
       } else {
-        fromShip = at < mainFleetRange ? mainFleet[at]  : escortFleet[at - mainFleetRange]
-        toShip   = df < enemyFleetRange ? enemyFleet[df] : enemyEscort[df - enemyFleetRange]
+        fromShip = at < mainFleetRange ? mainFleetShips[at]  : escortFleetShips[at - mainFleetRange]
+        toShip   = df < enemyFleetRange ? enemyMainShips[df] : enemyEscortShips[df - enemyFleetRange]
       }
 
       let damage = []
@@ -1084,7 +1267,7 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
         damage.push(dmg)
         damageTotal += dmg
       }
-      let hit = []
+      let hit: HitType[] = []
       for (const cl of hougeki.api_cl_list[i])
         hit.push(cl === 2 ? HitType.Critical : (cl === 1 ? HitType.Hit : HitType.Miss))
       let {fromHP, toHP, item} = damageShip(fromShip, toShip, damageTotal)
@@ -1101,8 +1284,8 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
     } else {
       const order = MultiTargetAttackOrder[attackType] || []
       for (let j = 0; j < hougeki.api_df_list[i].length; j++) {
-        let df, fromEnemy  // Declare ahead
-        df = hougeki.api_df_list[i][j] // Defender
+        let df = hougeki.api_df_list[i][j] // Defender
+        let fromEnemy: boolean
         let at = attacker + (order[j] || 0) // Attacker
         // Tanaka bug: in combined night battle the sp attack could have wrong attacker index
         if (isNight && escortFleet && escortFleet.length && at < mainFleetRange) {
@@ -1115,13 +1298,14 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
           if (at >= mainFleetRange) at -= mainFleetRange
           if (df >= mainFleetRange) df -= mainFleetRange
         }
-        let fromShip, toShip
+        let fromShip: Ship | null | undefined
+        let toShip: Ship | null | undefined
         if (fromEnemy) {
-          fromShip = at < enemyFleetRange ? enemyFleet[at] : enemyEscort[at - enemyFleetRange]
-          toShip   = df < mainFleetRange ? mainFleet[df]  : escortFleet[df - mainFleetRange]
+          fromShip = at < enemyFleetRange ? enemyMainShips[at] : enemyEscortShips[at - enemyFleetRange]
+          toShip   = df < mainFleetRange ? mainFleetShips[df]  : escortFleetShips[df - mainFleetRange]
         } else {
-          fromShip = at < mainFleetRange ? mainFleet[at]  : escortFleet[at - mainFleetRange]
-          toShip   = df < enemyFleetRange ? enemyFleet[df] : enemyEscort[df - enemyFleetRange]
+          fromShip = at < mainFleetRange ? mainFleetShips[at]  : escortFleetShips[at - mainFleetRange]
+          toShip   = df < enemyFleetRange ? enemyMainShips[df] : enemyEscortShips[df - enemyFleetRange]
         }
 
         let damage = []
@@ -1129,7 +1313,7 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
         if (dmg < 0) dmg = 0
         dmg = Math.floor(dmg)
         damage.push(dmg)
-        let hit = []
+        let hit: HitType[] = []
         let cl = hougeki.api_cl_list[i][j]
         hit.push(cl === 2 ? HitType.Critical : (cl === 1 ? HitType.Hit : HitType.Miss))
         let {fromHP, toHP, item} = damageShip(fromShip, toShip, dmg)
@@ -1153,23 +1337,32 @@ function simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, houge
   })
 }
 
-function simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, hougeki, packet) {
+function simulateNight(
+  fleetType: number,
+  mainFleet: ShipArrayish,
+  escortFleet: ShipArrayish,
+  enemyType: number,
+  enemyFleet: ShipArrayish,
+  enemyEscort: ShipArrayish,
+  hougeki: ApiNightHougeki | null | undefined,
+  packet: BattlePacket,
+): Stage | null {
   const stage = simulateShelling(mainFleet, escortFleet, enemyFleet, enemyEscort, hougeki, StageType.Night)
   if (stage) {
-    let _oursFleet  = fleetType === 0 ? mainFleet  : escortFleet
-    let _enemyFleet = enemyType === 0 ? enemyFleet : enemyEscort
+    let _oursFleet  = fleetType === 0 ? (mainFleet || [])  : (escortFleet || [])
+    let _enemyFleet = enemyType === 0 ? (enemyFleet || []) : (enemyEscort || [])
     if (packet.api_active_deck != null) {
       if (packet.api_active_deck[0] === 1) {
-        _oursFleet = mainFleet
+        _oursFleet = mainFleet || []
       }
       if (packet.api_active_deck[0] === 2) {
-        _oursFleet = escortFleet
+        _oursFleet = escortFleet || []
       }
       if (packet.api_active_deck[1] === 1) {
-        _enemyFleet = enemyFleet
+        _enemyFleet = enemyFleet || []
       }
       if (packet.api_active_deck[1] === 2) {
-        _enemyFleet = enemyEscort
+        _enemyFleet = enemyEscort || []
       }
     }
     stage.engagement = generateEngagementInfo(packet, _oursFleet, _enemyFleet, {night: true})
@@ -1177,16 +1370,34 @@ function simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet,
   return stage
 }
 
-function simulateSupport(enemyFleet, enemyEscort, support, flag) {
-  if (!(support != null && flag != null)) {
-    return
-  }
+function simulateSupport(
+  enemyFleet: ShipArrayish,
+  enemyEscort: ShipArrayish,
+  support: ApiSupportInfoLike | null | undefined,
+  flag: number | null | undefined,
+): Stage | null {
+  if (!(support != null && flag != null))
+    return null
+
+  const enemyMainShips = enemyFleet ?? []
+  const enemyEscortShips = enemyEscort ?? []
   if (flag === 1 || flag === 4) {
     const kouku = support.api_support_airatack
-    const st3 = kouku.api_stage3
-    let fleet = [].concat(enemyFleet, enemyEscort || [])
-    let attacks = simulateAerialAttack(fleet, st3.api_edam, st3.api_ebak_flag, st3.api_erai_flag, st3.api_ecl_flag)
-    let aerial = generateAerialInfo(kouku, null, null)
+    if (kouku == null || typeof kouku !== "object")
+      return null
+    const st3 = kouku.api_stage3 ?? null
+    if (st3 == null)
+      return null
+
+    const supportTargetShips = [...enemyMainShips, ...enemyEscortShips]
+    const attacks = simulateAerialAttack(
+      supportTargetShips,
+      st3.api_edam,
+      st3.api_ebak_flag,
+      st3.api_erai_flag,
+      st3.api_ecl_flag,
+    )
+    const aerial = generateAerialInfo(kouku, null, null)
     return new Stage({
       type   : StageType.Support,
       subtype: SupportTypeMap[flag],
@@ -1195,25 +1406,31 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
       kouku  : kouku,
     })
   }
+
   if (flag === 2 || flag === 3) {
     const hourai = support.api_support_hourai
-    let attacks = []
-    const enemyFleetRange = enemyFleet.length
-    for (let [i, damage] of hourai.api_damage.entries()) {
-      let toShip
+    if (hourai == null || typeof hourai !== "object")
+      return null
+    const api_damage = hourai.api_damage ?? []
+    const api_cl_list = hourai.api_cl_list ?? []
+
+    const attacks: Attack[] = []
+    const enemyFleetRange = enemyMainShips.length
+    for (let [i, damage] of api_damage.entries()) {
+      let toShip: Ship | null | undefined
       if (0 <= i && i < enemyFleetRange)
-        toShip = enemyFleet[i]
-      if (enemyFleetRange <= i && enemyEscort) // TANAKA: api_damage.length = 7 with 6 ships
-        toShip = enemyEscort[i - enemyFleetRange]
+        toShip = enemyMainShips[i]
+      if (enemyFleetRange <= i) // TANAKA: api_damage.length = 7 with 6 ships
+        toShip = enemyEscortShips[i - enemyFleetRange]
       if (toShip == null)
         continue
       damage = Math.floor(damage)
-      let cl = hourai.api_cl_list[i]
-      let hit = (cl === 2 ? HitType.Critical : (cl === 1 ? HitType.Hit : HitType.Miss))
+      const cl = api_cl_list[i]
+      const hit = (cl === 2 ? HitType.Critical : (cl === 1 ? HitType.Hit : HitType.Miss))
       // No showing Miss attack on support stage.
       if (hit === HitType.Miss)
         continue
-      let {fromHP, toHP, item} = damageShip(null, toShip, damage)
+      const {fromHP, toHP, item} = damageShip(null, toShip, damage)
       attacks.push(new Attack({
         type   : AttackType.Normal,
         toShip : toShip,
@@ -1230,9 +1447,16 @@ function simulateSupport(enemyFleet, enemyEscort, support, flag) {
       attacks: attacks,
     })
   }
+
+  return null
 }
 
-function simulateLandBase(enemyFleet, enemyEscort, kouku, assault=false) {
+function simulateLandBase(
+  enemyFleet: ShipArrayish,
+  enemyEscort: ShipArrayish,
+  kouku: ApiAirBaseAttack | null | undefined,
+  assault=false,
+): Stage | null {
   let stage = simulateAerial(null, null, enemyFleet, enemyEscort, kouku)
   if (stage != null) {
     stage.type = StageType.LandBase
@@ -1241,9 +1465,14 @@ function simulateLandBase(enemyFleet, enemyEscort, kouku, assault=false) {
   return stage
 }
 
-function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
+function simulateBattleRank(
+  mainFleet: ShipArrayish,
+  escortFleet: ShipArrayish,
+  enemyFleet: ShipArrayish,
+  enemyEscort: ShipArrayish,
+): Rank {
   // https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E6%88%A6%E9%97%98%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
-  function calStatus(fleet) {
+  function calStatus(fleet: ShipArray) {
     let shipNum = 0, sunkNum = 0, totalHP = 0, lostHP = 0
     let flagshipSunk = false, flagshipCritical  = false
     for (const ship of fleet) {
@@ -1266,8 +1495,8 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
       lostHP, flagshipSunk, flagshipCritical,
     }
   }
-  const ours  = calStatus([].concat(mainFleet,  escortFleet))
-  const enemy = calStatus([].concat(enemyFleet, enemyEscort))
+  const ours  = calStatus([...(mainFleet ?? []),  ...(escortFleet ?? [])])
+  const enemy = calStatus([...(enemyFleet ?? []), ...(enemyEscort ?? [])])
 
   if (ours.sunk === 0) {
     if (enemy.sunk === enemy.num) {
@@ -1298,10 +1527,12 @@ function simulateBattleRank(mainFleet, escortFleet, enemyFleet, enemyEscort) {
   return Rank.D
 }
 
-function simulateAirRaidBattleRank(mainFleet, escortFleet) {
+function simulateAirRaidBattleRank(mainFleet: ShipArrayish, escortFleet: ShipArrayish): Rank {
   // https://github.com/andanteyk/ElectronicObserver/blob/master/ElectronicObserver/Other/Information/kcmemo.md#%E9%95%B7%E8%B7%9D%E9%9B%A2%E7%A9%BA%E8%A5%B2%E6%88%A6%E3%81%A7%E3%81%AE%E5%8B%9D%E5%88%A9%E5%88%A4%E5%AE%9A
-  let initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.initHP : 0), 0)
-  let nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.nowHP  : 0),  0)
+  const mainFleetShips = mainFleet ?? []
+  const escortFleetShips = escortFleet ?? []
+  const initHPSum = [...mainFleetShips, ...escortFleetShips].reduce((x, s) => x + (s ? s.initHP : 0), 0)
+  const nowHPSum  = [...mainFleetShips, ...escortFleetShips].reduce((x, s) => x + (s ? s.nowHP  : 0),  0)
   let rate = (initHPSum - nowHPSum) / initHPSum * 100
 
   if (rate <= 0) return Rank.SS
@@ -1313,10 +1544,10 @@ function simulateAirRaidBattleRank(mainFleet, escortFleet) {
   return Rank.E
 }
 
-function simulateFleetMVP(fleet) {
-  if (fleet == null) fleet = []
+function simulateFleetMVP(fleet: ShipArrayish): number {
+  const fleetShips = fleet ?? []
   let m = -1, mvp = null
-  for (const [i, ship] of fleet.entries()) {
+  for (const [i, ship] of fleetShips.entries()) {
     if (ship == null)
       continue
     if (mvp == null || ship.damage > mvp.damage) {
@@ -1327,21 +1558,22 @@ function simulateFleetMVP(fleet) {
   return m
 }
 
-function simulateFleetNightMVP(stages) {
+function simulateFleetNightMVP(stages: Array<Stage | null> | null | undefined): number {
+  const ss = stages ?? []
   // Damage sum: Only escort fleet
   let sum = Array(6).fill(0)
-  for (const stage of stages) {
+  for (const stage of ss) {
     if (!(stage != null && stage.attacks != null))
       continue
     if (!(stage.type === StageType.Shelling && stage.subtype === StageType.Night))
       continue
     for (const attack of stage.attacks) {
       const {fromShip: ship, damage} = attack
-      if (ship == null || ship.owner != ShipOwner.Ours)
+      if (ship == null || ship.owner !== ShipOwner.Ours)
         continue
       const {pos} = ship
       if (6 <= pos && pos <= 11)
-        sum[pos - 7] += damage.reduce((x, y) => x + y, 0)
+        sum[pos - 7] += (damage ?? []).reduce((x: number, y: number) => x + y, 0)
       else
         console.warn("Non-escort fleet ship attack in night stage", ship, attack)
     }
@@ -1355,9 +1587,9 @@ function simulateFleetNightMVP(stages) {
   return m
 }
 
-function getEngagementStage(packet) {
+function getEngagementStage(packet: BattlePacket | null | undefined): Stage | null {
   // This function is usable for day combat only.
-  const engagement = generateEngagementInfo(packet, null, null, {engagement: true})
+  const engagement = generateEngagementInfo(packet, [], [], {engagement: true})
   return engagement == null ? null : new Stage({
     type: StageType.Engagement,
     engagement: engagement,
@@ -1408,6 +1640,8 @@ class Simulator2 {
   static auto(battle: Battle | null | undefined, opts: SimulatorOptions) {
     if (battle == null)
       return
+    if (battle.fleet == null || battle.packet == null)
+      return
     let s = new Simulator2(battle.fleet, opts)
     for (const packet of battle.packet)
       s.simulate(packet)
@@ -1416,28 +1650,29 @@ class Simulator2 {
 
   _initFleet(rawFleet: Array<RawFleetShip | null> | null | undefined, intl=0) {
     if (!(rawFleet != null)) return
-    let fleet = []
+    const fleet: Array<Ship | null> = []
     for (let [i, rawShip] of rawFleet.entries()) {
       if (rawShip != null && isRawFleetShip(rawShip)) {
-        let slots = rawShip.poi_slot.concat(rawShip.poi_slot_ex)
-        let baseParam, finalParam
+        const slots = rawShip.poi_slot.concat(rawShip.poi_slot_ex ?? [])
+        let baseParam: Param4 | undefined
+        let finalParam: Param4 | undefined
         if (this.usePoiAPI) {
           const kyouka = rawShip.api_kyouka
           const $ship = getShipDb()[rawShip.api_ship_id]
-          if (typeof $ship != 'undefined') {
-            baseParam =[
-              $ship.api_houg[0] + kyouka[0],
-              $ship.api_raig[0] + kyouka[1],
-              $ship.api_tyku[0] + kyouka[2],
-              $ship.api_souk[0] + kyouka[3],
-            ]
+          if (typeof $ship !== "undefined") {
+            baseParam = param4(
+              $ship.api_houg[0] + (kyouka[0] ?? 0),
+              $ship.api_raig[0] + (kyouka[1] ?? 0),
+              $ship.api_tyku[0] + (kyouka[2] ?? 0),
+              $ship.api_souk[0] + (kyouka[3] ?? 0),
+            )
           }
-          finalParam = [
+          finalParam = param4(
             rawShip.api_karyoku[0],
             rawShip.api_raisou[0],
             rawShip.api_taiku[0],
             rawShip.api_soukou[0],
-          ]
+          )
         }
         fleet.push(new Ship({
           id        : rawShip.api_ship_id,
@@ -1457,15 +1692,27 @@ class Simulator2 {
     return fleet
   }
 
-  _initEnemy(intl=0, api_ship_ke, api_eSlot, api_e_maxhps, api_e_nowhps, api_ship_lv, api_param=[], owner: ShipOwner = ShipOwner.Enemy) {
+  _initEnemy(
+    intl=0,
+    api_ship_ke: number[] | null | undefined,
+    api_eSlot: number[][] | null | undefined,
+    api_e_maxhps: number[] | null | undefined,
+    api_e_nowhps: number[] | null | undefined,
+    api_ship_lv: number[] | null | undefined,
+    api_param: number[][] = [],
+    owner: ShipOwner = ShipOwner.Enemy,
+  ) {
     if (!(api_ship_ke != null)) return
     let fleet = []
     const range = [...new Array(api_ship_ke.length).keys()]
     for (const i of range) {
       let id    = api_ship_ke[i]
       let slots = (api_eSlot && api_eSlot[i]) || []
-      let ship, raw, baseParam, finalParam
-       if (typeof id === "number" && id > 0) {
+      let ship: Ship | null = null
+      let raw: unknown
+      let baseParam: Param4 | undefined
+      let finalParam: Param4 | undefined
+      if (typeof id === "number" && id > 0) {
         if (api_ship_lv == null) api_ship_lv = []
         if (api_e_maxhps == null) api_e_maxhps = []
         if (api_e_nowhps == null) api_e_nowhps = []
@@ -1475,7 +1722,7 @@ class Simulator2 {
             api_lv: api_ship_lv[i],
             poi_slot: slots.map(id => getSlotItemDb()[id]),
           }
-          baseParam = api_param[i] || [0, 0, 0, 0]
+          baseParam = toParam4(api_param[i])
           finalParam = slots.reduce((bonus, id) => {
             const item = getSlotItemDb()[id] || {}
             return [
@@ -1486,7 +1733,7 @@ class Simulator2 {
             ]
           }, baseParam)
         }
-         ship = new Ship({
+        ship = new Ship({
           id        : id,
           owner     : owner,
           pos       : intl + i,
@@ -1565,7 +1812,7 @@ class Simulator2 {
       // The arrays include both fleets with 1-based indices (api_nowhps[1..]).
       const eMaxHps = packet.api_e_maxhps || packet.api_maxhps
       const eNowHps = packet.api_e_nowhps || packet.api_nowhps
-      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, eMaxHps, eNowHps, packet.api_ship_lv, packet.api_eParam)
+      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, eMaxHps, eNowHps, packet.api_ship_lv, packet.api_eParam) ?? null
       if (packet.api_ship_ke) {
         const eMaxHpsCombined = packet.api_e_maxhps_combined || packet.api_maxhps_combined
         const eNowHpsCombined = packet.api_e_nowhps_combined || packet.api_nowhps_combined
@@ -1577,7 +1824,7 @@ class Simulator2 {
           eNowHpsCombined,
           packet.api_ship_lv_combined,
           packet.api_eParam_combined,
-        )
+        ) ?? null
       }
     }
     // HACK: Only enemy carrier task force now.
@@ -1594,7 +1841,7 @@ class Simulator2 {
         info.api_ship_lv,
         info.api_Param,
         ShipOwner.Friend,
-      )
+      ) ?? null
     }
 
     // MVP rule is special for combined fleet. It may be a kancolle bug.
@@ -1840,10 +2087,13 @@ class Simulator2 {
 
   prcsResult(packet: BattlePacket, _path: string) {
     const { mainFleet, escortFleet } = this
-    let rank = BattleRankMap[packet.api_win_rank]
+    const rankKey = packet.api_win_rank ?? 'D'
+    let rank = BattleRankMap[rankKey]
     if (rank === Rank.S) {
-      const initHPSum = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.initHP : 0), 0)
-      const nowHPSum  = [].concat(mainFleet, escortFleet || []).reduce((x, s) => x + (s ? s.nowHP  : 0), 0)
+      const mainFleetShips = mainFleet ?? []
+      const escortFleetShips = escortFleet ?? []
+      const initHPSum = [...mainFleetShips, ...escortFleetShips].reduce((x, s) => x + (s ? s.initHP : 0), 0)
+      const nowHPSum  = [...mainFleetShips, ...escortFleetShips].reduce((x, s) => x + (s ? s.nowHP  : 0), 0)
       if (nowHPSum >= initHPSum)
         rank = Rank.SS
     }

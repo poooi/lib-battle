@@ -82,12 +82,13 @@ function assertHpInvariant(sim: unknown) {
 }
 
 function assertStageInvariant(sim: unknown) {
-  const validStageTypes = new Set(Object.values(StageType as unknown as Record<string, unknown>))
+  const validStageTypes = new Set<string>(Object.values(StageType))
   const s = asRec(sim)
   for (const stage of asUnknownArray(s?.stages)) {
     if (stage == null) continue
     const st = asRec(stage)
-    expect(validStageTypes.has(st?.type)).toBe(true)
+    const stageType = st?.type
+    expect(typeof stageType === "string" && validStageTypes.has(stageType)).toBe(true)
 
     const attacks = st?.attacks
     if (!Array.isArray(attacks)) continue
