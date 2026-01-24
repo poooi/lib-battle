@@ -81,14 +81,66 @@ export function oracleOpeningTorpedoWithLens(
   const raigeki = packet?.api_opening_atack
   if (!raigeki) return null
 
+  const attacks: OracleAttack[] = []
+
+  // Newer opening torpedo uses list-items form.
+  // NOTE: Indices are still 0-based and match simulator's `Ship.pos` via `pos = index + 1`.
+  if (Array.isArray(raigeki.api_frai_list_items) || Array.isArray(raigeki.api_erai_list_items)) {
+    const fraiList = Array.isArray(raigeki.api_frai_list_items) ? raigeki.api_frai_list_items : []
+    const eraiList = Array.isArray(raigeki.api_erai_list_items) ? raigeki.api_erai_list_items : []
+    const fydamList = Array.isArray(raigeki.api_fydam_list_items) ? raigeki.api_fydam_list_items : []
+    const eydamList = Array.isArray(raigeki.api_eydam_list_items) ? raigeki.api_eydam_list_items : []
+    const fclList = Array.isArray(raigeki.api_fcl_list_items) ? raigeki.api_fcl_list_items : []
+    const eclList = Array.isArray(raigeki.api_ecl_list_items) ? raigeki.api_ecl_list_items : []
+
+    // Friend -> Enemy
+    for (let i = 0; i < fraiList.length; i++) {
+      const targets = Array.isArray(fraiList[i]) ? fraiList[i] : []
+      if (lens.friendLen != null && i >= lens.friendLen) continue
+      for (let j = 0; j < targets.length; j++) {
+        const t = targets[j]
+        if (typeof t !== "number" || t < 0) continue
+        if (lens.enemyLen != null && t >= lens.enemyLen) continue
+        const dmg = Array.isArray(fydamList[i]) && typeof fydamList[i][j] === "number" ? [Math.floor(fydamList[i][j])] : []
+        const clv = Array.isArray(fclList[i]) && typeof fclList[i][j] === "number" ? [Math.floor(fclList[i][j])] : []
+        attacks.push({
+          from: { side: "friend", index: i },
+          to: { side: "enemy", index: t },
+          damage: dmg,
+          cl: clv,
+        })
+      }
+    }
+
+    // Enemy -> Friend
+    for (let i = 0; i < eraiList.length; i++) {
+      const targets = Array.isArray(eraiList[i]) ? eraiList[i] : []
+      if (lens.enemyLen != null && i >= lens.enemyLen) continue
+      for (let j = 0; j < targets.length; j++) {
+        const t = targets[j]
+        if (typeof t !== "number" || t < 0) continue
+        if (lens.friendLen != null && t >= lens.friendLen) continue
+        const dmg = Array.isArray(eydamList[i]) && typeof eydamList[i][j] === "number" ? [Math.floor(eydamList[i][j])] : []
+        const clv = Array.isArray(eclList[i]) && typeof eclList[i][j] === "number" ? [Math.floor(eclList[i][j])] : []
+        attacks.push({
+          from: { side: "enemy", index: i },
+          to: { side: "friend", index: t },
+          damage: dmg,
+          cl: clv,
+        })
+      }
+    }
+
+    return { kind: "opening_torpedo", attacks }
+  }
+
+  // Older opening torpedo uses flat arrays.
   const frai = asNumberArray(raigeki.api_frai)
   const erai = asNumberArray(raigeki.api_erai)
   const fydam = asNumberArray(raigeki.api_fydam ?? raigeki.api_fdam)
   const eydam = asNumberArray(raigeki.api_eydam ?? raigeki.api_edam)
   const fcl = asNumberArray(raigeki.api_fcl)
   const ecl = asNumberArray(raigeki.api_ecl)
-
-  const attacks: OracleAttack[] = []
 
   // Friend -> Enemy
   for (let i = 0; i < frai.length; i++) {
@@ -179,6 +231,9 @@ export function oracleShelling(packet: any, key: string): OraclePhase | null {
   const hougeki = packet?.[key]
   if (!hougeki) return null
 
+  // Only validate our-side attacks for now (matches current usage in tests).
+  const atEflag = asNumberArray(hougeki.api_at_eflag)
+
   const atList = asNumberArray(hougeki.api_at_list)
   const dfList = Array.isArray(hougeki.api_df_list) ? hougeki.api_df_list : []
   const damage = Array.isArray(hougeki.api_damage) ? hougeki.api_damage : []
@@ -189,6 +244,7 @@ export function oracleShelling(packet: any, key: string): OraclePhase | null {
   for (let i = 0; i < atList.length; i++) {
     const attacker = atList[i]
     if (typeof attacker !== "number" || attacker < 0) continue
+    if (atEflag.length > 0 && atEflag[i] === 1) continue
 
     const df = dfList[i]
     let targets: number[] = []
