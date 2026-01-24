@@ -1,6 +1,19 @@
 import { describe, it, expect } from "vitest"
 
+import fs from "node:fs"
+
 import { Simulator, Battle } from "../index"
+import type { BattleOptions } from "../index"
+
+type Rec = Record<string, unknown>
+
+function asRec(v: unknown): Rec | null {
+  return v != null && typeof v === "object" ? (v as Rec) : null
+}
+
+function asUnknownArray(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : []
+}
 
 import {
   oracleAerialStage3,
@@ -10,102 +23,143 @@ import {
   oracleShelling,
 } from "./oracle/packet-oracle"
 
-function loadGzJson(p: string) {
-  const fs = require("node:fs")
-  const zlib = require("node:zlib")
-  return JSON.parse(zlib.gunzipSync(fs.readFileSync(p)).toString("utf8"))
+function loadJson(p: string): unknown {
+  return JSON.parse(fs.readFileSync(p, "utf8")) as unknown
 }
 
-function stageAttacksByTypeSubtype(sim: any, type: string, subtype: string) {
-  const stages = Array.isArray(sim?.stages) ? sim.stages : []
-  const stage = stages.findLast((s: any) => s && s.type === type && s.subtype === subtype)
-  return Array.isArray(stage?.attacks) ? stage.attacks : []
+function stageAttacksByTypeSubtype(sim: unknown, type: string, subtype: string): unknown[] {
+  const s = asRec(sim)
+  const stages = asUnknownArray(s?.stages)
+  for (let i = stages.length - 1; i >= 0; i--) {
+    const st = stages[i]
+    if (asRec(st)?.type === type && asRec(st)?.subtype === subtype) {
+      return asUnknownArray(asRec(st)?.attacks)
+    }
+  }
+  return []
 }
 
-function stageAttacksByType(sim: any, type: string) {
-  const stages = Array.isArray(sim?.stages) ? sim.stages : []
-  const stage = stages.find((s: any) => s && s.type === type)
-  return Array.isArray(stage?.attacks) ? stage.attacks : []
+function stageAttacksByType(sim: unknown, type: string): unknown[] {
+  const s = asRec(sim)
+  const stages = asUnknownArray(s?.stages)
+  const stage = stages.find((st) => asRec(st)?.type === type)
+  return asUnknownArray(asRec(stage)?.attacks)
 }
 
-function summarizeAttack(atk: any) {
+function summarizeAttack(atk: unknown) {
+  const a = asRec(atk)
+  const fromShip = asRec(a?.fromShip)
+  const toShip = asRec(a?.toShip)
+  const damage = asUnknownArray(a?.damage)
+  const hit = asUnknownArray(a?.hit)
   return {
-    fromPos: atk?.fromShip?.pos ?? null,
-    toPos: atk?.toShip?.pos ?? null,
-    damage: Array.isArray(atk?.damage) ? atk.damage.map((x: any) => Math.floor(x)) : [],
-    hit: Array.isArray(atk?.hit) ? atk.hit.map((x: any) => Math.floor(x)) : [],
+    fromPos: typeof fromShip?.pos === "number" ? fromShip.pos : null,
+    toPos: typeof toShip?.pos === "number" ? toShip.pos : null,
+    damage: damage.filter((x): x is number => typeof x === "number").map((x) => Math.floor(x)),
+    hit: hit.filter((x): x is number => typeof x === "number").map((x) => Math.floor(x)),
   }
 }
 
-function enemyPosFromIndex(sim: any, idx: number) {
+function enemyPosFromIndex(sim: unknown, idx: number) {
   if (idx !== 0) return idx
-  const enemy0 = Array.isArray(sim?.enemyFleet) ? sim.enemyFleet[0] : null
-  return enemy0 ? 0 : null
+  const s = asRec(sim)
+  const enemyFleet0 = asUnknownArray(s?.enemyFleet)[0]
+  return enemyFleet0 ? 0 : null
 }
 
-function fromOracleTorpedo(sim: any, oracleAtk: any) {
-  const fromPos = oracleAtk.from.side === "friend" ? oracleAtk.from.index + 1 : oracleAtk.from.index
-  const toPos = oracleAtk.to.side === "enemy" ? enemyPosFromIndex(sim, oracleAtk.to.index) : oracleAtk.to.index + 1
-  return { fromPos, toPos, damage: oracleAtk.damage, hit: oracleAtk.cl }
-}
-
-function fromOracleShelling(sim: any, oracleAtk: any) {
+function fromOracleTorpedo(sim: unknown, oracleAtk: unknown) {
+  const o = asRec(oracleAtk)
+  const from = asRec(o?.from)
+  const to = asRec(o?.to)
+  const fromSide = typeof from?.side === "string" ? from.side : ""
+  const toSide = typeof to?.side === "string" ? to.side : ""
+  const fromIndex = typeof from?.index === "number" ? from.index : 0
+  const toIndex = typeof to?.index === "number" ? to.index : 0
+  const fromPos = fromSide === "friend" ? fromIndex + 1 : fromIndex
+  const toPos = toSide === "enemy" ? enemyPosFromIndex(sim, toIndex) : toIndex + 1
   return {
-    fromPos: oracleAtk.from.index + 1,
-    toPos: enemyPosFromIndex(sim, oracleAtk.to.index),
-    damage: oracleAtk.damage,
-    hit: oracleAtk.cl,
+    fromPos,
+    toPos,
+    damage: asUnknownArray(o?.damage).filter((x): x is number => typeof x === "number"),
+    hit: asUnknownArray(o?.cl).filter((x): x is number => typeof x === "number"),
   }
 }
 
-function summarizeAerialAttack(atk: any) {
-  const to = atk?.toShip
-  const side = to?.owner === "Enemy" ? "enemy" : to?.owner === "Ours" ? "friend" : null
-  const hit = Array.isArray(atk?.hit) ? Math.floor(atk.hit[0] ?? 0) : 0
+function fromOracleShelling(sim: unknown, oracleAtk: unknown) {
+  const o = asRec(oracleAtk)
+  const from = asRec(o?.from)
+  const to = asRec(o?.to)
+  const fromIndex = typeof from?.index === "number" ? from.index : 0
+  const toIndex = typeof to?.index === "number" ? to.index : 0
+  return {
+    fromPos: fromIndex + 1,
+    toPos: enemyPosFromIndex(sim, toIndex),
+    damage: asUnknownArray(o?.damage).filter((x): x is number => typeof x === "number"),
+    hit: asUnknownArray(o?.cl).filter((x): x is number => typeof x === "number"),
+  }
+}
+
+function summarizeAerialAttack(atk: unknown) {
+  const a = asRec(atk)
+  const to = asRec(a?.toShip)
+  const owner = typeof to?.owner === "string" ? to.owner : ""
+  const side = owner === "Enemy" ? "enemy" : owner === "Ours" ? "friend" : null
+  const hitList = asUnknownArray(a?.hit)
+  const hit0 = typeof hitList[0] === "number" ? hitList[0] : 0
+  const dmgList = asUnknownArray(a?.damage)
+  const dmg0 = typeof dmgList[0] === "number" ? dmgList[0] : 0
+  const hit = Math.floor(hit0)
   return {
     toSide: side,
-    toPos: to?.pos ?? null,
-    damage: Array.isArray(atk?.damage) ? Math.floor(atk.damage[0] ?? 0) : 0,
+    toPos: typeof to?.pos === "number" ? to.pos : null,
+    damage: Math.floor(dmg0),
     cl: hit === 2 ? 1 : 0,
   }
 }
 
-function fromOracleStage3(sim: any, h: any) {
-  const toPos = h.to.side === "enemy" ? enemyPosFromIndex(sim, h.to.index) : h.to.index + 1
-  return { toSide: h.to.side === "enemy" ? "enemy" : "friend", toPos, damage: h.damage, cl: h.cl }
+function fromOracleStage3(sim: unknown, h: unknown) {
+  const o = asRec(h)
+  const to = asRec(o?.to)
+  const toSide = typeof to?.side === "string" ? to.side : ""
+  const toIndex = typeof to?.index === "number" ? to.index : 0
+  const toPos = toSide === "enemy" ? enemyPosFromIndex(sim, toIndex) : toIndex + 1
+  return {
+    toSide: toSide === "enemy" ? "enemy" : "friend",
+    toPos,
+    damage: typeof o?.damage === "number" ? o.damage : 0,
+    cl: typeof o?.cl === "number" ? o.cl : 0,
+  }
 }
 
 describe("packet oracle phases", () => {
   it("api_hougeki1 matches oracle (day shelling)", () => {
     // This fixture has a typical day battle with api_hougeki1.
-    const json: any = loadGzJson("tests/fixtures/battle-detail/features/injection_kouku/1616044537827.json.gz")
-    const battle = new Battle(json)
-    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
+    const json = loadJson("tests/fixtures/battle-detail/features/injection_kouku/1616044537827.json")
+    const battle = new Battle(json as BattleOptions)
+    const sim = Simulator.auto(battle, { usePoiAPI: false })
 
-    const packet = (json as any).packet?.[0]
+    const packet = asUnknownArray(asRec(json)?.packet)[0]
     const oracle = oracleShelling(packet, "api_hougeki1")
     expect(oracle).toBeTruthy()
 
     const attacks = stageAttacksByType(sim, "Shelling")
     const actual = attacks
-      .filter((a: any) => a && a.fromShip?.owner === "Ours" && a.toShip?.owner === "Enemy")
+      .filter((a) => asRec(asRec(a)?.fromShip)?.owner === "Ours" && asRec(asRec(a)?.toShip)?.owner === "Enemy")
       .map(summarizeAttack)
-    const expected = (oracle!.attacks || []).map((a: any) => fromOracleShelling(sim, a))
+    const expected = asUnknownArray(oracle?.attacks).map((a) => fromOracleShelling(sim, a))
     expect(actual).toEqual(expected)
   })
 
   it("api_opening_atack matches oracle when present", () => {
-    const json: any = loadGzJson("tests/fixtures/battle-detail/features/friendly_info/1584729348536.json.gz")
-    const battle = new Battle(json)
-    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
+    const json = loadJson("tests/fixtures/battle-detail/features/friendly_info/1584729348536.json")
+    const battle = new Battle(json as BattleOptions)
+    const sim = Simulator.auto(battle, { usePoiAPI: false })
 
-    const packet = (json as any).packet?.[0]
+    const packet = asUnknownArray(asRec(json)?.packet)[0]
     const friendLen =
-      (Array.isArray(sim.mainFleet) ? sim.mainFleet.length : 0) +
-      (Array.isArray(sim.escortFleet) ? sim.escortFleet.length : 0)
+      asUnknownArray(asRec(sim)?.mainFleet).length + asUnknownArray(asRec(sim)?.escortFleet).length
     const enemyLen =
-      (Array.isArray(sim.enemyFleet) ? sim.enemyFleet.length : 0) +
-      (Array.isArray(sim.enemyEscort) ? sim.enemyEscort.length : 0)
+      asUnknownArray(asRec(sim)?.enemyFleet).length + asUnknownArray(asRec(sim)?.enemyEscort).length
 
     const oracle = oracleOpeningTorpedoWithLens(packet, {
       friendLen: friendLen > 0 ? friendLen : undefined,
@@ -115,24 +169,22 @@ describe("packet oracle phases", () => {
 
     const attacks = stageAttacksByTypeSubtype(sim, "Torpedo", "Opening")
     const actual = attacks
-      .filter((a: any) => a && a.fromShip?.owner === "Ours" && a.toShip?.owner === "Enemy")
+      .filter((a) => asRec(asRec(a)?.fromShip)?.owner === "Ours" && asRec(asRec(a)?.toShip)?.owner === "Enemy")
       .map(summarizeAttack)
-    const expected = (oracle!.attacks || []).map((a: any) => fromOracleTorpedo(sim, a))
+    const expected = asUnknownArray(oracle?.attacks).map((a) => fromOracleTorpedo(sim, a))
     expect(actual).toEqual(expected)
   })
 
   it("api_raigeki matches oracle (closing torpedo)", () => {
-    const json: any = loadGzJson("tests/fixtures/battle-detail/features/injection_kouku/1616044537827.json.gz")
-    const battle = new Battle(json)
-    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
+    const json = loadJson("tests/fixtures/battle-detail/features/injection_kouku/1616044537827.json")
+    const battle = new Battle(json as BattleOptions)
+    const sim = Simulator.auto(battle, { usePoiAPI: false })
 
-    const packet = (json as any).packet?.[0]
+    const packet = asUnknownArray(asRec(json)?.packet)[0]
     const friendLen =
-      (Array.isArray(sim.mainFleet) ? sim.mainFleet.length : 0) +
-      (Array.isArray(sim.escortFleet) ? sim.escortFleet.length : 0)
+      asUnknownArray(asRec(sim)?.mainFleet).length + asUnknownArray(asRec(sim)?.escortFleet).length
     const enemyLen =
-      (Array.isArray(sim.enemyFleet) ? sim.enemyFleet.length : 0) +
-      (Array.isArray(sim.enemyEscort) ? sim.enemyEscort.length : 0)
+      asUnknownArray(asRec(sim)?.enemyFleet).length + asUnknownArray(asRec(sim)?.enemyEscort).length
 
     const oracle = oracleClosingTorpedoWithLens(packet, {
       friendLen: friendLen > 0 ? friendLen : undefined,
@@ -142,51 +194,51 @@ describe("packet oracle phases", () => {
 
     const attacks = stageAttacksByType(sim, "Torpedo")
     const actual = attacks
-      .filter((a: any) => a && a.fromShip?.owner === "Ours" && a.toShip?.owner === "Enemy")
+      .filter((a) => asRec(asRec(a)?.fromShip)?.owner === "Ours" && asRec(asRec(a)?.toShip)?.owner === "Enemy")
       .map(summarizeAttack)
-    const expected = (oracle!.attacks || []).map((a: any) => fromOracleTorpedo(sim, a))
+    const expected = asUnknownArray(oracle?.attacks).map((a) => fromOracleTorpedo(sim, a))
     expect(actual).toEqual(expected)
   })
 
   it("api_kouku.api_stage3 matches oracle (aerial)", () => {
-    const json: any = loadGzJson("tests/fixtures/battle-detail/features/injection_kouku/1616044537827.json.gz")
-    const battle = new Battle(json)
-    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
+    const json = loadJson("tests/fixtures/battle-detail/features/injection_kouku/1616044537827.json")
+    const battle = new Battle(json as BattleOptions)
+    const sim = Simulator.auto(battle, { usePoiAPI: false })
 
-    const packet = (json as any).packet?.[0]
+    const packet = asUnknownArray(asRec(json)?.packet)[0]
     const oracle = oracleAerialStage3(packet)
     expect(oracle).toBeTruthy()
 
     const attacks = stageAttacksByType(sim, "Aerial")
     const actual = attacks
-      .filter((a: any) => a && a.toShip?.owner === "Enemy")
+      .filter((a) => asRec(asRec(a)?.toShip)?.owner === "Enemy")
       .map(summarizeAerialAttack)
-    const expected = (oracle!.hits || [])
-      .filter((h: any) => h?.to?.side === "enemy")
-      .map((h: any) => fromOracleStage3(sim, h))
+    const expected = asUnknownArray(oracle?.hits)
+      .filter((h) => asRec(asRec(h)?.to)?.side === "enemy")
+      .map((h) => fromOracleStage3(sim, h))
     expect(actual).toEqual(expected)
   })
 
   it("api_air_base_attack[0].api_stage3 matches oracle (LBAS)", () => {
-    const json: any = loadGzJson("tests/fixtures/battle-detail/features/air_base_attack/1615132578245.json.gz")
-    const battle = new Battle(json)
-    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
+    const json = loadJson("tests/fixtures/battle-detail/features/air_base_attack/1615132578245.json")
+    const battle = new Battle(json as BattleOptions)
+    const sim = Simulator.auto(battle, { usePoiAPI: false })
 
-    const packet = (json as any).packet?.[0]
+    const packet = asUnknownArray(asRec(json)?.packet)[0]
     const oracle = oracleLandBaseStage3(packet, 0)
     expect(oracle).toBeTruthy()
 
-    const stages = Array.isArray(sim?.stages) ? sim.stages : []
-    const stage = stages.find((s: any) => s && s.type === "LandBase")
-    const attacks = Array.isArray(stage?.attacks) ? stage.attacks : []
+    const stages = asUnknownArray(asRec(sim)?.stages)
+    const stage = stages.find((s) => asRec(s)?.type === "LandBase")
+    const attacks = asUnknownArray(asRec(stage)?.attacks)
 
     const actual = attacks
-      .filter((a: any) => a && a.toShip?.owner === "Enemy")
+      .filter((a) => asRec(asRec(a)?.toShip)?.owner === "Enemy")
       .map(summarizeAerialAttack)
 
-    const expected = (oracle!.hits || [])
-      .filter((h: any) => h?.to?.side === "enemy")
-      .map((h: any) => fromOracleStage3(sim, h))
+    const expected = asUnknownArray(oracle?.hits)
+      .filter((h) => asRec(asRec(h)?.to)?.side === "enemy")
+      .map((h) => fromOracleStage3(sim, h))
 
     expect(actual).toEqual(expected)
   })

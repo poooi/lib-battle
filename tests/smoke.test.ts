@@ -1,6 +1,19 @@
 import { describe, it, expect } from "vitest"
 
 import { Simulator, Battle } from "../index"
+import type { BattleOptions } from "../index"
+
+import fs from "node:fs"
+
+type Rec = Record<string, unknown>
+
+function asRec(v: unknown): Rec | null {
+  return v != null && typeof v === "object" ? (v as Rec) : null
+}
+
+function asUnknownArray(v: unknown): unknown[] {
+  return Array.isArray(v) ? v : []
+}
 
 import battleJson from "./v2+carrier+support+aerial+night.json"
 import injectionKoukuJson from "./api_injection_kouku.json"
@@ -12,151 +25,199 @@ import {
   oracleFriendlyNightShelling,
 } from "./oracle/packet-oracle"
 
-function stageAttacksByType(sim: any, type: string) {
-  const stages = Array.isArray(sim?.stages) ? sim.stages : []
-  const stage = stages.find((s: any) => s && s.type === type)
-  return Array.isArray(stage?.attacks) ? stage.attacks : []
+function stageAttacksByType(sim: unknown, type: string): unknown[] {
+  const s = asRec(sim)
+  const stages = asUnknownArray(s?.stages)
+  const stage = stages.find((st) => asRec(st)?.type === type)
+  return asUnknownArray(asRec(stage)?.attacks)
 }
 
-function stageAttacksByTypeSubtype(sim: any, type: string, subtype: string) {
-  const stages = Array.isArray(sim?.stages) ? sim.stages : []
-  const stage = stages.findLast((s: any) => s && s.type === type && s.subtype === subtype)
-  return Array.isArray(stage?.attacks) ? stage.attacks : []
+function stageAttacksByTypeSubtype(sim: unknown, type: string, subtype: string): unknown[] {
+  const s = asRec(sim)
+  const stages = asUnknownArray(s?.stages)
+  for (let i = stages.length - 1; i >= 0; i--) {
+    const st = stages[i]
+    if (asRec(st)?.type === type && asRec(st)?.subtype === subtype) {
+      return asUnknownArray(asRec(st)?.attacks)
+    }
+  }
+  return []
 }
 
-function summarizeTorpedoAttack(atk: any) {
+function summarizeTorpedoAttack(atk: unknown) {
+  const a = asRec(atk)
+  const fromShip = asRec(a?.fromShip)
+  const toShip = asRec(a?.toShip)
+  const damage = asUnknownArray(a?.damage)
+  const hit = asUnknownArray(a?.hit)
   return {
     // Simulator Ship.pos is 1-based for our side. Keep it stable in tests.
-    fromPos: atk?.fromShip?.pos ?? null,
+    fromPos: typeof fromShip?.pos === "number" ? fromShip.pos : null,
     // Enemy Ship.pos is 0-based with a null sentinel at index 0.
-    toPos: atk?.toShip?.pos ?? null,
-    damage: Array.isArray(atk?.damage) ? atk.damage.map((x: any) => Math.floor(x)) : [],
-    hit: Array.isArray(atk?.hit) ? atk.hit.map((x: any) => Math.floor(x)) : [],
+    toPos: typeof toShip?.pos === "number" ? toShip.pos : null,
+    damage: damage.filter((x): x is number => typeof x === "number").map((x) => Math.floor(x)),
+    hit: hit.filter((x): x is number => typeof x === "number").map((x) => Math.floor(x)),
   }
 }
 
-function summarizeShellingAttack(atk: any) {
+function summarizeShellingAttack(atk: unknown) {
+  const a = asRec(atk)
+  const fromShip = asRec(a?.fromShip)
+  const toShip = asRec(a?.toShip)
+  const damage = asUnknownArray(a?.damage)
+  const hit = asUnknownArray(a?.hit)
   return {
-    fromPos: atk?.fromShip?.pos ?? null,
-    toPos: atk?.toShip?.pos ?? null,
-    damage: Array.isArray(atk?.damage) ? atk.damage.map((x: any) => Math.floor(x)) : [],
-    hit: Array.isArray(atk?.hit) ? atk.hit.map((x: any) => Math.floor(x)) : [],
+    fromPos: typeof fromShip?.pos === "number" ? fromShip.pos : null,
+    toPos: typeof toShip?.pos === "number" ? toShip.pos : null,
+    damage: damage.filter((x): x is number => typeof x === "number").map((x) => Math.floor(x)),
+    hit: hit.filter((x): x is number => typeof x === "number").map((x) => Math.floor(x)),
   }
 }
 
-function enemyPosFromIndex(sim: any, idx: number) {
+function enemyPosFromIndex(sim: unknown, idx: number) {
   if (idx !== 0) return idx
-  const enemy0 = Array.isArray(sim?.enemyFleet) ? sim.enemyFleet[0] : null
+  const s = asRec(sim)
+  const enemy0 = asUnknownArray(s?.enemyFleet)[0]
   return enemy0 ? 0 : null
 }
 
-function fromOracleTorpedo(sim: any, oracleAtk: any) {
-  const fromPos = oracleAtk.from.side === "friend" ? oracleAtk.from.index + 1 : oracleAtk.from.index
-  // For opening torpedo, api_frai target index matches enemy Ship.pos (0-based with null sentinel at 0).
-  const toPos = oracleAtk.to.side === "enemy" ? enemyPosFromIndex(sim, oracleAtk.to.index) : oracleAtk.to.index + 1
-  return { fromPos, toPos, damage: oracleAtk.damage, hit: oracleAtk.cl }
-}
+function fromOracleTorpedo(sim: unknown, oracleAtk: unknown) {
+  const o = asRec(oracleAtk)
+  const from = asRec(o?.from)
+  const to = asRec(o?.to)
+  const fromSide = typeof from?.side === "string" ? from.side : ""
+  const toSide = typeof to?.side === "string" ? to.side : ""
+  const fromIndex = typeof from?.index === "number" ? from.index : 0
+  const toIndex = typeof to?.index === "number" ? to.index : 0
 
-function fromOracleShelling(sim: any, oracleAtk: any) {
+  const fromPos = fromSide === "friend" ? fromIndex + 1 : fromIndex
+  // For opening torpedo, api_frai target index matches enemy Ship.pos (0-based with null sentinel at 0).
+  const toPos = toSide === "enemy" ? enemyPosFromIndex(sim, toIndex) : toIndex + 1
   return {
-    // api_at_list is 0-based with -1 sentinel; Ship.pos is 1-based for our side.
-    fromPos: oracleAtk.from.index + 1,
-    toPos: enemyPosFromIndex(sim, oracleAtk.to.index),
-    damage: oracleAtk.damage,
-    hit: oracleAtk.cl,
+    fromPos,
+    toPos,
+    damage: asUnknownArray(o?.damage).filter((x): x is number => typeof x === "number"),
+    hit: asUnknownArray(o?.cl).filter((x): x is number => typeof x === "number"),
   }
 }
 
-function fromOracleFriendlyShelling(sim: any, oracleAtk: any) {
+function fromOracleShelling(sim: unknown, oracleAtk: unknown) {
+  const o = asRec(oracleAtk)
+  const from = asRec(o?.from)
+  const to = asRec(o?.to)
+  const fromIndex = typeof from?.index === "number" ? from.index : 0
+  const toIndex = typeof to?.index === "number" ? to.index : 0
+  return {
+    // api_at_list is 0-based with -1 sentinel; Ship.pos is 1-based for our side.
+    fromPos: fromIndex + 1,
+    toPos: enemyPosFromIndex(sim, toIndex),
+    damage: asUnknownArray(o?.damage).filter((x): x is number => typeof x === "number"),
+    hit: asUnknownArray(o?.cl).filter((x): x is number => typeof x === "number"),
+  }
+}
+
+function fromOracleFriendlyShelling(sim: unknown, oracleAtk: unknown) {
+  const o = asRec(oracleAtk)
+  const from = asRec(o?.from)
+  const to = asRec(o?.to)
+  const fromIndex = typeof from?.index === "number" ? from.index : 0
+  const toIndex = typeof to?.index === "number" ? to.index : 0
   return {
     // Friend fleet Ship.pos is 0-based in simulator (_initEnemy), so keep it.
-    fromPos: oracleAtk.from.index,
-    toPos: enemyPosFromIndex(sim, oracleAtk.to.index),
-    damage: oracleAtk.damage,
-    hit: oracleAtk.cl,
+    fromPos: fromIndex,
+    toPos: enemyPosFromIndex(sim, toIndex),
+    damage: asUnknownArray(o?.damage).filter((x): x is number => typeof x === "number"),
+    hit: asUnknownArray(o?.cl).filter((x): x is number => typeof x === "number"),
   }
 }
 
 describe("smoke", () => {
   it("simulates a captured battle without throwing", () => {
-    const battleData: any = battleJson
-    const battle = new Battle(battleData)
+    const battleData = battleJson as unknown
+    const battle = new Battle(battleData as BattleOptions)
     expect(() => Simulator.auto(battle, { usePoiAPI: false })).not.toThrow()
   })
 
   it("api_opening_atack torpedo matches packet oracle", () => {
-    const battleData: any = airBaseInjectionJson
-    const battle = new Battle(battleData)
-    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
-    const oracle = oracleOpeningTorpedoWithLens((airBaseInjectionJson as any).packet?.[0], {
-      friendLen: Array.isArray(sim.mainFleet) ? sim.mainFleet.length : undefined,
-      enemyLen: Array.isArray(sim.enemyFleet) ? sim.enemyFleet.length : undefined,
+    const battleData = airBaseInjectionJson as unknown
+    const battle = new Battle(battleData as BattleOptions)
+    const sim = Simulator.auto(battle, { usePoiAPI: false })
+    const packet = asUnknownArray(asRec(airBaseInjectionJson as unknown)?.packet)[0]
+    const oracle = oracleOpeningTorpedoWithLens(packet, {
+      friendLen: asUnknownArray(asRec(sim)?.mainFleet).length || undefined,
+      enemyLen: asUnknownArray(asRec(sim)?.enemyFleet).length || undefined,
     })
     expect(oracle).toBeTruthy()
 
     const torpedoAttacks = stageAttacksByTypeSubtype(sim, "Torpedo", "Opening")
     const actual = torpedoAttacks
-      .filter((a: any) => Array.isArray(a?.damage) && a.damage.some((d: any) => typeof d === "number" && d > 0))
+      .filter((a) => {
+        const damage = asUnknownArray(asRec(a)?.damage)
+        return damage.some((d) => typeof d === "number" && d > 0)
+      })
       .map(summarizeTorpedoAttack)
 
-    const expected = (oracle!.attacks || [])
-      .filter((a: any) => Array.isArray(a?.damage) && a.damage.some((d: any) => typeof d === "number" && d > 0))
-      .map((a: any) => fromOracleTorpedo(sim, a))
+    const expected = asUnknownArray(oracle?.attacks)
+      .filter((a) => {
+        const damage = asUnknownArray(asRec(a)?.damage)
+        return damage.some((d) => typeof d === "number" && d > 0)
+      })
+      .map((a) => fromOracleTorpedo(sim, a))
     expect(actual).toEqual(expected)
   })
 
   it("api_hougeki matches packet oracle (night)", () => {
-    const battleData: any = battleJson
-    const battle = new Battle(battleData)
-    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
-    const packet = (battleJson as any).packet?.find((p: any) => p && p.api_hougeki)
+    const battleData = battleJson as unknown
+    const battle = new Battle(battleData as BattleOptions)
+    const sim = Simulator.auto(battle, { usePoiAPI: false })
+    const packet = asUnknownArray(asRec(battleJson as unknown)?.packet).find((p) => asRec(p)?.api_hougeki != null)
     const oracleAttacks = oracleNightHougekiFriend(packet, {
-      mainFleetLen: Array.isArray(sim.mainFleet) ? sim.mainFleet.length : 0,
+      mainFleetLen: asUnknownArray(asRec(sim)?.mainFleet).length,
     })
     expect(oracleAttacks.length).toBeGreaterThan(0)
 
     const shellingAttacks = stageAttacksByTypeSubtype(sim, "Shelling", "Night")
     const actual = shellingAttacks.filter(Boolean).map(summarizeShellingAttack)
-    const expected = oracleAttacks.map((a: any) => fromOracleShelling(sim, a))
+    const expected = oracleAttacks.map((a) => fromOracleShelling(sim, a))
     expect(actual).toEqual(expected)
   })
 
   it("api_friendly_battle.api_hougeki matches packet oracle (night)", () => {
     // Use battle-detail fixture so we have friendly info + night.
-    const fs = require("node:fs")
-    const zlib = require("node:zlib")
-    const p = "tests/fixtures/battle-detail/features/friendly_info/1584729348536.json.gz"
-    const json: any = JSON.parse(zlib.gunzipSync(fs.readFileSync(p)).toString("utf8"))
-    const battle = new Battle(json)
-    const sim = Simulator.auto(battle, { usePoiAPI: false }) as any
-    const packet = (json as any).packet?.find((x: any) => x && x.api_friendly_battle)
+    const p = "tests/fixtures/battle-detail/features/friendly_info/1584729348536.json"
+    const json = JSON.parse(fs.readFileSync(p, "utf8")) as unknown
+    const battle = new Battle(json as BattleOptions)
+    const sim = Simulator.auto(battle, { usePoiAPI: false })
+    const packet = asUnknownArray(asRec(json)?.packet).find((x) => asRec(x)?.api_friendly_battle != null)
     const oracle = oracleFriendlyNightShelling(packet)
     expect(oracle).toBeTruthy()
 
     // Friendly attacks are simulated as a separate Night shelling stage.
-    const friendlyStage = (sim.stages || []).find((s: any) => {
-      if (!s || s.type !== "Shelling" || s.subtype !== "Night") return false
-      const attacks = Array.isArray(s.attacks) ? s.attacks : []
-      return attacks.some((a: any) => a?.fromShip?.owner === "Friend")
+    const stages = asUnknownArray(asRec(sim)?.stages)
+    const friendlyStage = stages.find((st) => {
+      const r = asRec(st)
+      if (r?.type !== "Shelling" || r?.subtype !== "Night") return false
+      const attacks = asUnknownArray(r?.attacks)
+      return attacks.some((a) => asRec(asRec(a)?.fromShip)?.owner === "Friend")
     })
-    const friendlyAttacks = Array.isArray(friendlyStage?.attacks)
-      ? friendlyStage.attacks.filter((a: any) => a?.fromShip?.owner === "Friend")
-      : []
+    const friendlyAttacks = asUnknownArray(asRec(friendlyStage)?.attacks).filter(
+      (a) => asRec(asRec(a)?.fromShip)?.owner === "Friend",
+    )
 
     const actual = friendlyAttacks.filter(Boolean).map(summarizeShellingAttack)
-    const expected = (oracle!.attacks || []).map((a: any) => fromOracleFriendlyShelling(sim, a))
+    const expected = asUnknownArray(oracle?.attacks).map((a) => fromOracleFriendlyShelling(sim, a))
     expect(actual).toEqual(expected)
   })
 
   it("simulates injection kouku battle without throwing", () => {
-    const battleData: any = injectionKoukuJson
-    const battle = new Battle(battleData)
+    const battleData = injectionKoukuJson as unknown
+    const battle = new Battle(battleData as BattleOptions)
     expect(() => Simulator.auto(battle, { usePoiAPI: false })).not.toThrow()
   })
 
   it("simulates air base injection battle without throwing", () => {
-    const battleData: any = airBaseInjectionJson
-    const battle = new Battle(battleData)
+    const battleData = airBaseInjectionJson as unknown
+    const battle = new Battle(battleData as BattleOptions)
     expect(() => Simulator.auto(battle, { usePoiAPI: false })).not.toThrow()
   })
 })
