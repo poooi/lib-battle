@@ -35,6 +35,19 @@ the repo structure.
 
 ## Migration Steps
 
+## Execution Checklist (Keep In Sync)
+
+This section is the step-by-step execution order. Update it as changes land so
+progress can be repicked from the plan.
+
+- [x] Sync branch and confirm baseline (pushed `aafa702` to `origin/ts`)
+- [x] Hygiene: stop tracking build outputs (commit `cbb9b5c` removed tracked `index.js`)
+- [ ] Phase 1: type the public model layer (`packet.ts`) and remove `// @ts-nocheck`
+- [ ] Phase 2: type simulator boundary inputs (`simulator.ts`) and narrow/remove `// @ts-nocheck`
+- [ ] Phase 3: remove global `window` assumptions via guarded helpers
+- [ ] Phase 4: tighten internals opportunistically + add lightweight tests
+- [ ] Phase 5 (optional): consider enabling `strict`
+
 ### Phase 0: Keep Green Baseline
 
 Goal: keep `npm run build`, `npm run lint`, and `npm test` passing while typing
