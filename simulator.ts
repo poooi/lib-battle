@@ -1,7 +1,188 @@
 type Param4 = [number, number, number, number]
 
+import type { Battle, Fleet } from "./packet"
+
+import type {
+  APIHougeki1Class as PracticeHougeki,
+  APIInjectionKouku as PracticeInjectionKouku,
+  APIKouku as PracticeKouku,
+  APIOpeningAtackClass as PracticeOpeningAttack,
+} from "kcsapi/api_req_practice/battle/response"
+
+import type {
+  APIAirBaseAttack as SortieBattleAirBaseAttack,
+  APIHougeki1Class as SortieBattleHougeki,
+  APIInjectionKouku as SortieBattleInjectionKouku,
+  APIKouku as SortieBattleKouku,
+  APIOpeningAtackClass as SortieBattleOpeningAttack,
+} from "kcsapi/api_req_sortie/battle/response"
+
+import type { APIKouku as SortieAirbattleKouku } from "kcsapi/api_req_sortie/airbattle/response"
+
+import type {
+  APIAirBaseAttack as LdAirbattleAirBaseAttack,
+  APIKouku as LdAirbattleKouku,
+} from "kcsapi/api_req_sortie/ld_airbattle/response"
+
+import type {
+  APIHougeki1 as LdShootingHougeki,
+} from "kcsapi/api_req_sortie/ld_shooting/response"
+
+import type {
+  APIHougeki1Class as CombinedBattleHougeki,
+  APIInjectionKouku as CombinedBattleInjectionKouku,
+  APIKouku as CombinedBattleKouku,
+  APIRaigekiClass as CombinedBattleRaigeki,
+} from "kcsapi/api_req_combined_battle/battle/response"
+
+import type {
+  API as EcBattleRaigeki,
+  APIHougeki as EcBattleHougeki,
+  APIKouku as EcBattleKouku,
+  APIAirBaseAttack as EcBattleAirBaseAttack,
+} from "kcsapi/api_req_combined_battle/ec_battle/response"
+
+import type {
+  APIHougeki as MidnightHougeki,
+} from "kcsapi/api_req_battle_midnight/battle/response"
+
+import type {
+  APIReqCombinedBattleEcMidnightBattleResponseAPIHougeki as EcMidnightHougeki,
+  APIFriendlyBattle,
+  APIFriendlyInfo,
+} from "kcsapi/api_req_combined_battle/ec_midnight_battle/response"
+
 type SimulatorOptions = {
   usePoiAPI?: boolean
+}
+
+type RawSlotItem = { api_slotitem_id: number }
+
+type RawFleetShip = {
+  api_ship_id: number
+  api_maxhp: number
+  api_nowhp: number
+  poi_slot: Array<RawSlotItem | null>
+  poi_slot_ex?: Array<RawSlotItem | null>
+
+  // poi-only ship stats (present in fixtures)
+  api_kyouka: number[]
+  api_karyoku: number[]
+  api_raisou: number[]
+  api_taiku: number[]
+  api_soukou: number[]
+}
+
+function isRawFleetShip(ship: unknown): ship is RawFleetShip {
+  if (typeof ship !== "object" || ship === null) return false
+  const s = ship as Record<string, unknown>
+  return (
+    typeof s.api_ship_id === "number" &&
+    typeof s.api_maxhp === "number" &&
+    typeof s.api_nowhp === "number" &&
+    Array.isArray(s.poi_slot)
+  )
+}
+
+type BattlePacket = {
+  poi_path: string
+  poi_time?: number
+
+  api_ship_ke?: number[]
+  api_ship_ke_combined?: number[]
+  api_ship_lv?: number[]
+  api_ship_lv_combined?: number[]
+
+  api_eSlot?: number[][]
+  api_eSlot_combined?: number[][]
+  api_eParam?: number[][]
+  api_eParam_combined?: number[][]
+
+  // newer captures
+  api_e_maxhps?: number[]
+  api_e_nowhps?: number[]
+  api_e_maxhps_combined?: number[]
+  api_e_nowhps_combined?: number[]
+
+  // older captures
+  api_maxhps?: number[]
+  api_nowhps?: number[]
+  api_maxhps_combined?: number[]
+  api_nowhps_combined?: number[]
+
+  api_midnight_flag?: number
+  api_stage_flag?: number[]
+  api_stage_flag2?: number[]
+  api_opening_flag?: number
+  api_opening_taisen_flag?: number
+  api_support_flag?: number
+  api_hourai_flag?: number[]
+
+  api_kouku?: ApiKouku
+  api_kouku2?: ApiKouku
+  api_injection_kouku?: ApiInjectionKouku
+  api_air_base_attack?: ApiAirBaseAttack[] | null
+
+  // present on some combined/night-to-day flows
+  api_air_base_injection?: ApiAirBaseAttack | null
+  api_friendly_kouku?: ApiKouku
+
+  api_opening_taisen?: ApiHougeki | null
+  api_opening_atack?: ApiOpeningAttack | null
+  api_hougeki?: ApiNightHougeki
+  api_hougeki1?: ApiHougeki | null
+  api_hougeki2?: ApiHougeki | null
+  api_hougeki3?: ApiHougeki | null
+  api_raigeki?: ApiRaigeki | null
+
+  api_friendly_info?: APIFriendlyInfo
+  api_friendly_battle?: APIFriendlyBattle
+
+  // night-to-day
+  api_n_support_info?: unknown
+  api_n_support_flag?: number
+  api_n_hougeki1?: ApiHougeki | null
+  api_n_hougeki2?: ApiHougeki | null
+
+  api_support_info?: unknown
+
+  api_win_rank?: string
+  api_mvp?: number
+  api_mvp_combined?: number
+  api_get_ship?: { api_ship_id?: number }
+  api_get_useitem?: { api_useitem_id?: number }
+}
+
+type ApiAirBaseAttack =
+  | SortieBattleAirBaseAttack
+  | LdAirbattleAirBaseAttack
+  | EcBattleAirBaseAttack
+
+type ApiInjectionKouku = PracticeInjectionKouku | SortieBattleInjectionKouku | CombinedBattleInjectionKouku
+
+type ApiKouku =
+  | PracticeKouku
+  | SortieBattleKouku
+  | SortieAirbattleKouku
+  | LdAirbattleKouku
+  | CombinedBattleKouku
+  | EcBattleKouku
+
+type ApiOpeningAttack = PracticeOpeningAttack | SortieBattleOpeningAttack | CombinedBattleRaigeki | EcBattleRaigeki
+
+type ApiRaigeki = PracticeOpeningAttack | SortieBattleOpeningAttack | CombinedBattleRaigeki | EcBattleRaigeki
+
+type ApiHougeki = PracticeHougeki | SortieBattleHougeki | CombinedBattleHougeki | EcBattleHougeki | LdShootingHougeki
+
+type ApiNightHougeki = MidnightHougeki | EcMidnightHougeki
+
+function isBattlePacket(packet: unknown): packet is BattlePacket {
+  return (
+    typeof packet === "object" &&
+    packet !== null &&
+    "poi_path" in packet &&
+    typeof (packet as { poi_path: unknown }).poi_path === "string"
+  )
 }
 
 type EngagementInfoOptions2 = {
@@ -1201,15 +1382,15 @@ class Simulator2 {
   _isEngaged: boolean
   _isNightOnlyMVP: boolean
 
-  constructor(fleet, opts={}) {
+  constructor(fleet: Fleet, opts: SimulatorOptions = {}) {
     // When no using poi API:
     //   enemyShip.raw == null
-    this.usePoiAPI = (opts as SimulatorOptions).usePoiAPI
+    this.usePoiAPI = opts.usePoiAPI
 
     this.fleetType    = fleet.type || 0
-    this.mainFleet    = this._initFleet(fleet.main, 0)
-    this.escortFleet  = this._initFleet(fleet.escort, 6)
-    this.supportFleet = this._initFleet(fleet.support)
+    this.mainFleet    = this._initFleet(fleet.main as Array<RawFleetShip | null>, 0)
+    this.escortFleet  = this._initFleet(fleet.escort as Array<RawFleetShip | null>, 6)
+    this.supportFleet = this._initFleet(fleet.support as Array<RawFleetShip | null>)
     this.landBaseAirCorps = fleet.LBAC
     this.enemyFleet   = null  // Assign at first packet
     this.enemyEscort  = null  // ^
@@ -1224,7 +1405,7 @@ class Simulator2 {
     this._isNightOnlyMVP = false
   }
 
-  static auto(battle, opts) {
+  static auto(battle: Battle | null | undefined, opts: SimulatorOptions) {
     if (battle == null)
       return
     let s = new Simulator2(battle.fleet, opts)
@@ -1233,11 +1414,11 @@ class Simulator2 {
     return s
   }
 
-  _initFleet(rawFleet, intl=0) {
+  _initFleet(rawFleet: Array<RawFleetShip | null> | null | undefined, intl=0) {
     if (!(rawFleet != null)) return
     let fleet = []
     for (let [i, rawShip] of rawFleet.entries()) {
-      if (rawShip != null) {
+      if (rawShip != null && isRawFleetShip(rawShip)) {
         let slots = rawShip.poi_slot.concat(rawShip.poi_slot_ex)
         let baseParam, finalParam
         if (this.usePoiAPI) {
@@ -1322,8 +1503,9 @@ class Simulator2 {
     return fleet
   }
 
-  simulate(packet) {
+  simulate(packet: unknown) {
     if (packet == null) return
+    if (!isBattlePacket(packet)) return
     const path = packet.poi_path
 
     this.prepare(packet, path)
@@ -1376,7 +1558,7 @@ class Simulator2 {
     }
   }
 
-  prepare(packet, path) {
+  prepare(packet: BattlePacket, path: string) {
     const { fleetType, enemyFleet } = this
     if (enemyFleet == null) {
       // Older records may not have api_e_* hp arrays; fall back to api_(max|now)hps.
@@ -1434,7 +1616,7 @@ class Simulator2 {
     }
   }
 
-  assert(packet, path) {
+  assert(_packet: BattlePacket, path: string) {
     const { fleetType } = this
     /** Assert fleet.type with API Path **/
     // Normal Fleet
@@ -1494,7 +1676,7 @@ class Simulator2 {
     }
   }
 
-  prcsDay(packet, path) {
+  prcsDay(packet: BattlePacket, path: string) {
     const { fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, friendFleet } = this
     const { stages } = this
 
@@ -1634,7 +1816,7 @@ class Simulator2 {
     }
   }
 
-  prcsNight(packet, path) {
+  prcsNight(packet: BattlePacket, path: string) {
     const { stages, fleetType, mainFleet, escortFleet, friendFleet, enemyType, enemyFleet, enemyEscort } = this
 
     // Night to Day Support
@@ -1656,7 +1838,7 @@ class Simulator2 {
     stages.push(simulateNight(fleetType, mainFleet, escortFleet, enemyType, enemyFleet, enemyEscort, packet.api_hougeki, packet))
   }
 
-  prcsResult(packet, path) {
+  prcsResult(packet: BattlePacket, _path: string) {
     const { mainFleet, escortFleet } = this
     let rank = BattleRankMap[packet.api_win_rank]
     if (rank === Rank.S) {

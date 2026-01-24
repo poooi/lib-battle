@@ -12,24 +12,24 @@ export type BattleMap = [number, number, number] | number[]
 
 export interface FleetOptions {
   type?: number
-  main?: unknown
-  escort?: unknown
-  support?: unknown
+  main?: Array<unknown | null>
+  escort?: Array<unknown | null>
+  support?: Array<unknown | null>
   LBAC?: unknown
 }
 
 export class Fleet {
   type: number | undefined
-  main: unknown
-  escort: unknown
-  support: unknown
+  main: Array<unknown | null>
+  escort: Array<unknown | null>
+  support: Array<unknown | null>
   LBAC: unknown
 
   constructor(opts: FleetOptions = {}) {
     this.type = opts.type // api_port/port.api_combined_flag
     this.main = opts.main // api_get_member/deck[].api_ship (Extended)
-    this.escort = opts.escort // ^^
-    this.support = opts.support // ^^
+    this.escort = opts.escort // ^^ 
+    this.support = opts.support // ^^ 
     this.LBAC = opts.LBAC // api_get_member/base_air_corps (Extended)
   }
 }
