@@ -1,7 +1,55 @@
 // @ts-nocheck
 
+type Param4 = [number, number, number, number]
+
+type ShipDbEntry = {
+  api_houg: [number]
+  api_raig: [number]
+  api_tyku: [number]
+  api_souk: [number]
+}
+
+type ShipDb = Record<number, ShipDbEntry>
+
+type SlotItem = {
+  api_houg?: number
+  api_raig?: number
+  api_tyku?: number
+  api_souk?: number
+}
+
+type SlotItemDb = Record<number, SlotItem>
+
+function getShipDb(): ShipDb {
+  const ships = window.$ships
+  if (ships == null || typeof ships !== "object") return {}
+  return ships as ShipDb
+}
+
+function getSlotItemDb(): SlotItemDb {
+  const items = window.$slotitems
+  if (items == null || typeof items !== "object") return {}
+  return items as SlotItemDb
+}
+
+export interface StageOptions {
+  type: StageType
+  subtype?: StageType | null
+  attacks?: Attack[]
+  aerial?: AerialInfo | null
+  engagement?: EngagementInfo | null
+  kouku?: unknown
+}
+
 export class Stage {
-  constructor(opts) {
+  type: StageType
+  subtype: StageType | null | undefined
+  attacks: Attack[] | undefined
+  aerial: AerialInfo | null | undefined
+  engagement: EngagementInfo | null | undefined
+  kouku: unknown
+
+  constructor(opts: StageOptions) {
     this.type    = opts.type      // StageType
     this.subtype = opts.subtype
     this.attacks = opts.attacks   // [Attack, ...]
@@ -27,10 +75,32 @@ export const StageType = {
   Opening: "Opening", // Torpedo,  opening torpedo salvo
                       // Shelling, opening anti-sub
   Assault: "Assault", // Aerial & LandBase, Jet Air Assault
+} as const
+
+export type StageType = (typeof StageType)[keyof typeof StageType]
+
+export interface AttackOptions {
+  type: AttackType
+  fromShip?: Ship | null
+  toShip?: Ship | null
+  damage?: number[]
+  hit?: HitType[]
+  fromHP?: number
+  toHP?: number
+  useItem?: number | null
 }
 
 export class Attack {
-  constructor(opts) {
+  type: AttackType
+  fromShip: Ship | null | undefined
+  toShip: Ship | null | undefined
+  damage: number[] | undefined
+  hit: HitType[] | undefined
+  fromHP: number | undefined
+  toHP: number | undefined
+  useItem: number | null | undefined
+
+  constructor(opts: AttackOptions) {
     this.type     = opts.type      // AttackType
     this.fromShip = opts.fromShip  // Ship
     this.toShip   = opts.toShip    // Ship
@@ -68,9 +138,11 @@ export const AttackType = {
   Primary_Primary_CI  : "PrCI", // カットイン(主砲/主砲)
   Primary_Torpedo_CI  : "PTCI", // カットイン(主砲/魚雷)
   Torpedo_Torpedo_CI  : "TTCI", // カットイン(魚雷/魚雷)
-}
+} as const
 
-export const MultiTargetAttackType = new Set([
+export type AttackType = (typeof AttackType)[keyof typeof AttackType]
+
+export const MultiTargetAttackType: ReadonlySet<AttackType> = new Set([
   AttackType.Nelson_Touch,
   AttackType.Nagato_Punch,
   AttackType.Mutsu_Splash,
@@ -88,7 +160,7 @@ export const MultiTargetAttackType = new Set([
   AttackType.Type_4_LC_Special_Attack,
 ])
 
-export const MultiTargetAttackOrder = {
+export const MultiTargetAttackOrder: Partial<Record<AttackType, readonly number[]>> = {
   [AttackType.Nelson_Touch]: [0, 2, 4],
   [AttackType.Nagato_Punch]: [0, 0, 1],
   [AttackType.Mutsu_Splash]: [0, 0, 1],
@@ -110,10 +182,41 @@ export const HitType = {
   Miss    : 0,
   Hit     : 1,
   Critical: 2,
+} as const
+
+export type HitType = (typeof HitType)[keyof typeof HitType]
+
+export interface ShipOptions {
+  id: number
+  owner: ShipOwner
+  pos: number
+  maxHP: number
+  nowHP: number
+  lostHP?: number
+  damage?: number
+  items?: ReadonlyArray<number | null> | null
+  useItem?: number | null
+  baseParam?: Param4
+  finalParam?: Param4
+  raw?: unknown
 }
 
 export class Ship {
-  constructor(opts) {
+  id: number
+  owner: ShipOwner
+  pos: number
+  maxHP: number
+  nowHP: number
+  initHP: number
+  lostHP: number
+  damage: number
+  items: ReadonlyArray<number | null> | null | undefined
+  useItem: number | null
+  baseParam: Param4 | undefined
+  finalParam: Param4 | undefined
+  raw: unknown
+
+  constructor(opts: ShipOptions) {
     this.id    = opts.id    // int, $ships
     this.owner = opts.owner // ShipOwner
     this.pos   = opts.pos   // int, Position in fleet
@@ -138,10 +241,52 @@ export const ShipOwner = {
   Ours : "Ours",
   Enemy: "Enemy",
   Friend: "Friend",
+} as const
+
+export type ShipOwner = (typeof ShipOwner)[keyof typeof ShipOwner]
+
+export interface AerialInfoOptions {
+  fPlaneInit?: number
+  fPlaneNow?: number
+  ePlaneInit?: number
+  ePlaneNow?: number
+  control?: AirControl
+  fContact?: number | null
+  eContact?: number | null
+  fPlaneInit1?: number
+  fPlaneNow1?: number
+  ePlaneInit1?: number
+  ePlaneNow1?: number
+  aaciKind?: number
+  aaciShip?: Ship | null
+  aaciItems?: unknown
+  fPlaneInit2?: number
+  fPlaneNow2?: number
+  ePlaneInit2?: number
+  ePlaneNow2?: number
 }
 
 export class AerialInfo {
-  constructor(opts) {
+  fPlaneInit: number | undefined
+  fPlaneNow: number | undefined
+  ePlaneInit: number | undefined
+  ePlaneNow: number | undefined
+  control: AirControl | undefined
+  fContact: number | null | undefined
+  eContact: number | null | undefined
+  fPlaneInit1: number | undefined
+  fPlaneNow1: number | undefined
+  ePlaneInit1: number | undefined
+  ePlaneNow1: number | undefined
+  aaciKind: number | undefined
+  aaciShip: Ship | null | undefined
+  aaciItems: unknown
+  fPlaneInit2: number | undefined
+  fPlaneNow2: number | undefined
+  ePlaneInit2: number | undefined
+  ePlaneNow2: number | undefined
+
+  constructor(opts: AerialInfoOptions = {}) {
     this.fPlaneInit  = opts.fPlaneInit   // Init plane count of entire aerial combat (Ours)
     this.fPlaneNow   = opts.fPlaneNow    // Now  plane count of entire aerial combat (Ours)
     this.ePlaneInit  = opts.ePlaneInit   // ^^ (Enemy)
@@ -171,10 +316,38 @@ export const AirControl = {
   Parity      : "Air Parity",
   Denial      : "Air Denial",
   Incapability: "Air Incapability",
+} as const
+
+export type AirControl = (typeof AirControl)[keyof typeof AirControl]
+
+export interface EngagementInfoOptions {
+  engagement?: Engagement
+  fFormation?: Formation
+  eFormation?: Formation
+  fDetection?: Detection
+  eDetection?: Detection
+  fContact?: number | null
+  eContact?: number | null
+  fFlare?: Ship | null
+  eFlare?: Ship | null
+  weakened?: unknown
+  smokeType?: number
 }
 
 export class EngagementInfo {
-  constructor(opts) {
+  engagement: Engagement | undefined
+  fFormation: Formation | undefined
+  eFormation: Formation | undefined
+  fDetection: Detection | undefined
+  eDetection: Detection | undefined
+  fContact: number | null | undefined
+  eContact: number | null | undefined
+  fFlare: Ship | null | undefined
+  eFlare: Ship | null | undefined
+  weakened: unknown
+  smokeType: number | undefined
+
+  constructor(opts: EngagementInfoOptions = {}) {
     this.engagement = opts.engagement  // api_formation[2] => Engagement
     this.fFormation = opts.fFormation  // api_formation[0] => Formation
     this.eFormation = opts.eFormation  // api_formation[1] => Formation
@@ -186,8 +359,8 @@ export class EngagementInfo {
     this.fFlare   = opts.fFlare    // api_flare_pos[0] => Ship
     this.eFlare   = opts.eFlare    // api_flare_pos[1] => Ship
     // Weaken Mechanism (Event Map)
-    this.weakened = this.weakened  // api_boss_damaged, api_xal01, ...
-    this.smokeType = this.smokeType // api_smoke_type
+    this.weakened = opts.weakened  // api_boss_damaged, api_xal01, ...
+    this.smokeType = opts.smokeType // api_smoke_type
   }
 }
 
@@ -196,7 +369,9 @@ export const Engagement = {
   Headon       : "Head-on Engagement",
   TAdvantage   : "Crossing the T (Advantage)",
   TDisadvantage: "Crossing the T (Disadvantage)",
-}
+} as const
+
+export type Engagement = (typeof Engagement)[keyof typeof Engagement]
 
 export const Formation = {
   Ahead  : "Line Ahead",
@@ -209,7 +384,9 @@ export const Formation = {
   CruisingForward: "Cruising Formation 2 (forward)",
   CruisingDiamond: "Cruising Formation 3 (diamond)",
   CruisingBattle : "Cruising Formation 4 (battle)",
-}
+} as const
+
+export type Formation = (typeof Formation)[keyof typeof Formation]
 
 export const Detection = {
   Success  : "Success",
@@ -218,10 +395,24 @@ export const Detection = {
   FailureNR: "Failure (not return)",
   SuccessNP: "Success (without plane)",
   FailureNP: "Failure (without plane)",
+} as const
+
+export type Detection = (typeof Detection)[keyof typeof Detection]
+
+export interface ResultOptions {
+  rank?: Rank
+  mvp?: [number, number]
+  getShip?: number
+  getItem?: number
 }
 
 export class Result {
-  constructor(opts) {
+  rank: Rank | undefined
+  mvp: [number, number] | undefined
+  getShip: number | undefined
+  getItem: number | undefined
+
+  constructor(opts: ResultOptions = {}) {
     this.rank    = opts.rank     // 'A', 'B'...
     this.mvp     = opts.mvp      // [0..5, 0..5], MVP index of mainFleet & escortFleet.
     this.getShip = opts.getShip  // id of store.const.$
@@ -237,7 +428,9 @@ export const Rank = {
   C : 'C',
   D : 'D',
   E : 'E',
-}
+} as const
+
+export type Rank = (typeof Rank)[keyof typeof Rank]
 
 /**
  * NOTICE
@@ -365,6 +558,10 @@ function useItem(ship) {
 }
 
 function damageShip(fromShip, toShip, damage) {
+  if (toShip == null) {
+    // Some legacy records contain invalid target indices.
+    return {fromHP: 0, toHP: 0, item: null}
+  }
   if (fromShip != null) {
     fromShip.damage += damage
   }
@@ -1002,7 +1199,7 @@ class Simulator2 {
         let baseParam, finalParam
         if (this.usePoiAPI) {
           const kyouka = rawShip.api_kyouka
-          const $ship = window.$ships[rawShip.api_ship_id]
+          const $ship = getShipDb()[rawShip.api_ship_id]
           if (typeof $ship != 'undefined') {
             baseParam =[
               $ship.api_houg[0] + kyouka[0],
@@ -1042,18 +1239,21 @@ class Simulator2 {
     const range = [...new Array(api_ship_ke.length).keys()]
     for (const i of range) {
       let id    = api_ship_ke[i]
-      let slots = api_eSlot[i] || []
+      let slots = (api_eSlot && api_eSlot[i]) || []
       let ship, raw, baseParam, finalParam
       if (typeof id === "number" && id > 0) {
+        if (api_ship_lv == null) api_ship_lv = []
+        if (api_e_maxhps == null) api_e_maxhps = []
+        if (api_e_nowhps == null) api_e_nowhps = []
         if (this.usePoiAPI) {
           raw = {
             api_ship_id: id,
             api_lv: api_ship_lv[i],
-            poi_slot: slots.map(id => window.$slotitems[id]),
+            poi_slot: slots.map(id => getSlotItemDb()[id]),
           }
           baseParam = api_param[i] || [0, 0, 0, 0]
           finalParam = slots.reduce((bonus, id) => {
-            const item = window.$slotitems[id] || {}
+            const item = getSlotItemDb()[id] || {}
             return [
               bonus[0] + (item.api_houg || 0),
               bonus[1] + (item.api_raig || 0),
@@ -1136,9 +1336,24 @@ class Simulator2 {
   prepare(packet, path) {
     const { fleetType, enemyFleet } = this
     if (enemyFleet == null) {
-      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, packet.api_e_maxhps, packet.api_e_nowhps, packet.api_ship_lv, packet.api_eParam)
-      if (packet.api_ship_ke)
-        this.enemyEscort = this._initEnemy(packet.api_ship_ke.length, packet.api_ship_ke_combined, packet.api_eSlot_combined, packet.api_e_maxhps_combined, packet.api_e_nowhps_combined, packet.api_ship_lv_combined, packet.api_eParam_combined)
+      // Older records may not have api_e_* hp arrays; fall back to api_(max|now)hps.
+      // The arrays include both fleets with 1-based indices (api_nowhps[1..]).
+      const eMaxHps = packet.api_e_maxhps || packet.api_maxhps
+      const eNowHps = packet.api_e_nowhps || packet.api_nowhps
+      this.enemyFleet = this._initEnemy(0, packet.api_ship_ke, packet.api_eSlot, eMaxHps, eNowHps, packet.api_ship_lv, packet.api_eParam)
+      if (packet.api_ship_ke) {
+        const eMaxHpsCombined = packet.api_e_maxhps_combined || packet.api_maxhps_combined
+        const eNowHpsCombined = packet.api_e_nowhps_combined || packet.api_nowhps_combined
+        this.enemyEscort = this._initEnemy(
+          packet.api_ship_ke.length,
+          packet.api_ship_ke_combined,
+          packet.api_eSlot_combined,
+          eMaxHpsCombined,
+          eNowHpsCombined,
+          packet.api_ship_lv_combined,
+          packet.api_eParam_combined,
+        )
+      }
     }
     // HACK: Only enemy carrier task force now.
     this.enemyType = (path.includes('ec_') || path.includes('each_')) ? 1 : 0
