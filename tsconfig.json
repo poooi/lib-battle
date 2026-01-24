@@ -10,5 +10,5 @@
     "skipLibCheck": true
   },
   "include": ["*.ts", "*.d.ts"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "tests", "vitest.config.ts"]
 }
