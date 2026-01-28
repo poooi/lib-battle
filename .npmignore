@@ -5,5 +5,4 @@ eslint.config.cjs
 tsconfig.json
 
 *.ts
-*.d.ts
 *.js.map
