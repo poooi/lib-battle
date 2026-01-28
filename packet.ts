@@ -1,6 +1,7 @@
 export const BattleType = {
   Normal: "Normal",
   Boss: "Boss",
+  // NOTE: The value "Pratice" is intentionally misspelled to match historical fixtures/API. Do not change.
   Practice: "Pratice",
 } as const
 
