@@ -9,7 +9,7 @@
     "@types/node": "^25.0.10",
     "eslint": "^9.0.0",
     "globals": "^15.0.0",
-    "kcsapi": "^1.191214.0",
+    "kcsapi": "^1.260508.0",
     "typescript": "^5.0.0",
     "typescript-eslint": "^8.0.0",
     "vitest": "^3.2.4"

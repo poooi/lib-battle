@@ -11,18 +11,18 @@ function param4(a = 0, b = 0, c = 0, d = 0): Param4 {
 import type { Battle, Fleet } from "./packet"
 
 import type {
-  APIHougeki1Class as PracticeHougeki,
+  APIHougeki as PracticeHougeki,
   APIInjectionKouku as PracticeInjectionKouku,
   APIKouku as PracticeKouku,
-  APIOpeningAtackClass as PracticeOpeningAttack,
+  APIOpeningAtack as PracticeOpeningAttack,
 } from "kcsapi/api_req_practice/battle/response"
 
 import type {
   APIAirBaseAttack as SortieBattleAirBaseAttack,
-  APIHougeki1Class as SortieBattleHougeki,
+  APIHougeki as SortieBattleHougeki,
   APIInjectionKouku as SortieBattleInjectionKouku,
   APIKouku as SortieBattleKouku,
-  APIOpeningAtackClass as SortieBattleOpeningAttack,
+  APIOpeningAtack as SortieBattleOpeningAttack,
 } from "kcsapi/api_req_sortie/battle/response"
 
 import type { APIKouku as SortieAirbattleKouku } from "kcsapi/api_req_sortie/airbattle/response"
@@ -33,18 +33,18 @@ import type {
 } from "kcsapi/api_req_sortie/ld_airbattle/response"
 
 import type {
-  APIHougeki1 as LdShootingHougeki,
+  APIHougeki as LdShootingHougeki,
 } from "kcsapi/api_req_sortie/ld_shooting/response"
 
 import type {
-  APIHougeki1Class as CombinedBattleHougeki,
+  APIHougeki as CombinedBattleHougeki,
   APIInjectionKouku as CombinedBattleInjectionKouku,
   APIKouku as CombinedBattleKouku,
-  APIRaigekiClass as CombinedBattleRaigeki,
+  APIRaigeki as CombinedBattleRaigeki,
 } from "kcsapi/api_req_combined_battle/battle/response"
 
 import type {
-  API as EcBattleRaigeki,
+  APIRaigeki as EcBattleRaigeki,
   APIHougeki as EcBattleHougeki,
   APIKouku as EcBattleKouku,
   APIAirBaseAttack as EcBattleAirBaseAttack,
@@ -55,7 +55,7 @@ import type {
 } from "kcsapi/api_req_battle_midnight/battle/response"
 
 import type {
-  APIReqCombinedBattleEcMidnightBattleResponseAPIHougeki as EcMidnightHougeki,
+  APIHougeki as EcMidnightHougeki,
   APIFriendlyBattle,
   APIFriendlyInfo,
 } from "kcsapi/api_req_combined_battle/ec_midnight_battle/response"
@@ -200,13 +200,21 @@ type ApiHougeki = PracticeHougeki | SortieBattleHougeki | CombinedBattleHougeki 
 
 type ApiNightHougeki = MidnightHougeki | EcMidnightHougeki
 
-type ApiOpeningRaigeki = ApiRaigeki & {
-  api_frai_list_items?: number[][]
-  api_fydam_list_items?: number[][]
-  api_fcl_list_items?: number[][]
-  api_erai_list_items?: number[][]
-  api_eydam_list_items?: number[][]
-  api_ecl_list_items?: number[][]
+type ApiOpeningRaigeki = {
+  api_fdam: number[]
+  api_edam: number[]
+  api_frai?: number[]
+  api_fydam?: number[]
+  api_fcl?: number[]
+  api_erai?: number[]
+  api_eydam?: number[]
+  api_ecl?: number[]
+  api_frai_list_items?: (number[] | null)[]
+  api_fydam_list_items?: (number[] | null)[]
+  api_fcl_list_items?: (number[] | null)[]
+  api_erai_list_items?: (number[] | null)[]
+  api_eydam_list_items?: (number[] | null)[]
+  api_ecl_list_items?: (number[] | null)[]
 }
 
 // Some endpoints are missing/incorrect in kcsapi (notably night-to-day support).
@@ -1111,9 +1119,9 @@ function simulateOpeningTorpedoAttack(
   escortFleet: ShipArrayish,
   enemyFleet: ShipArrayish,
   enemyEscort: ShipArrayish,
-  eydamList: number[][] | null | undefined,
-  eraiList: number[][] | null | undefined,
-  eclList: number[][] | null | undefined,
+  eydamList: (number[] | null)[] | null | undefined,
+  eraiList: (number[] | null)[] | null | undefined,
+  eclList: (number[] | null)[] | null | undefined,
 ): Attack[] {
   const mainFleetShips = mainFleet ?? []
   const escortFleetShips = escortFleet ?? []
