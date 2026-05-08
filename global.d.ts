@@ -1,5 +1,7 @@
 interface Window {
-  // poi runtime globals (used when Simulator2 is constructed with { usePoiAPI: true })
+  /**
+   * @deprecated Pass `shipDb` directly to `Simulator2` options instead.
+   */
   $ships?: Record<
     number,
     {
@@ -9,6 +11,9 @@ interface Window {
       api_souk: [number]
     }
   >
+  /**
+   * @deprecated Pass `slotItemDb` directly to `Simulator2` options instead.
+   */
   $slotitems?: Record<
     number,
     {
