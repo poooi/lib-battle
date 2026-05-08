@@ -1,6 +1,6 @@
 import type { APISlotItem } from "kcsapi/api_get_member/require_info/response"
 import type { APIGetMemberShip2Response } from "kcsapi/api_get_member/ship2/response"
-import type { APIAirBase } from "kcsapi/api_get_member/mapinfo/response"
+import type { APIAirBase, APIPlaneInfo } from "kcsapi/api_get_member/mapinfo/response"
 
 export type RawSlotItem = APISlotItem
 
@@ -9,7 +9,13 @@ export type RawFleetShip = APIGetMemberShip2Response & {
   poi_slot_ex?: Array<RawSlotItem | null>
 }
 
-export type RawLBAC = APIAirBase
+export type RawPlane = APIPlaneInfo & {
+  poi_slot: RawSlotItem | null
+}
+
+export type RawLBAC = Omit<APIAirBase, "api_plane_info"> & {
+  api_plane_info: Array<RawPlane | null>
+}
 
 export const BattleType = {
   Normal: "Normal",
