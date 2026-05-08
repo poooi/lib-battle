@@ -61,10 +61,7 @@ import type {
 } from "kcsapi/api_req_combined_battle/ec_midnight_battle/response"
 
 type SimulatorOptions = {
-  /** @deprecated Use `shipDb` and `slotItemDb` instead. */
   usePoiAPI?: boolean
-  shipDb?: ShipDb
-  slotItemDb?: SlotItemDb
 }
 
 type Obj = Record<string, unknown>
@@ -235,6 +232,13 @@ type RawEnemyShip = {
   poi_slot: (SlotItemDb[number] | undefined)[]
 }
 
+function getShipDb(): ShipDb {
+  return window.$ships ?? {}
+}
+
+function getSlotItemDb(): SlotItemDb {
+  return window.$slotitems ?? {}
+}
 
 export interface StageOptions {
   type: StageType
@@ -1592,8 +1596,6 @@ function getEngagementStage(packet: BattlePacket | null | undefined): Stage | nu
 
 class Simulator2 {
   usePoiAPI: boolean | undefined
-  shipDb: ShipDb
-  slotItemDb: SlotItemDb
   fleetType: number
   mainFleet: Array<Ship | null> | undefined
   escortFleet: Array<Ship | null> | undefined
@@ -1612,12 +1614,7 @@ class Simulator2 {
   constructor(fleet: Fleet, opts: SimulatorOptions = {}) {
     // When no using poi API:
     //   enemyShip.raw == null
-    // eslint-disable-next-line @typescript-eslint/no-deprecated
-    const legacyMode = opts.usePoiAPI
-    const w = window as any // eslint-disable-line @typescript-eslint/no-explicit-any
-    this.shipDb = opts.shipDb ?? (legacyMode ? (w.$ships ?? {}) : {}) as ShipDb
-    this.slotItemDb = opts.slotItemDb ?? (legacyMode ? (w.$slotitems ?? {}) : {}) as SlotItemDb
-    this.usePoiAPI = opts.shipDb != null || opts.slotItemDb != null || legacyMode || undefined
+    this.usePoiAPI = opts.usePoiAPI
 
     this.fleetType    = fleet.type || 0
     this.mainFleet    = this._initFleet(fleet.main as Array<RawFleetShip | null>, 0)
@@ -1658,7 +1655,7 @@ class Simulator2 {
         let finalParam: Param4 | undefined
         if (this.usePoiAPI) {
           const kyouka = rawShip.api_kyouka
-          const $ship = this.shipDb[rawShip.api_ship_id]
+          const $ship = getShipDb()[rawShip.api_ship_id]
           if (typeof $ship !== "undefined") {
             baseParam = param4(
               $ship.api_houg[0] + (kyouka[0] ?? 0),
@@ -1720,11 +1717,11 @@ class Simulator2 {
           raw = {
             api_ship_id: id,
             api_lv: api_ship_lv[i],
-            poi_slot: slots.map(id => this.slotItemDb[id]),
+            poi_slot: slots.map(id => getSlotItemDb()[id]),
           }
           baseParam = toParam4(api_param[i])
           finalParam = slots.reduce((bonus, id) => {
-            const item = this.slotItemDb[id] || {}
+            const item = getSlotItemDb()[id] || {}
             return [
               bonus[0] + (item.api_houg || 0),
               bonus[1] + (item.api_raig || 0),
