@@ -8,7 +8,7 @@ function param4(a = 0, b = 0, c = 0, d = 0): Param4 {
   return [a, b, c, d]
 }
 
-import type { Battle, Fleet } from "./packet"
+import type { Battle, Fleet, RawFleetShip, RawLBAC } from "./packet"
 
 import type {
   APIHougeki as PracticeHougeki,
@@ -62,23 +62,6 @@ import type {
 
 type SimulatorOptions = {
   usePoiAPI?: boolean
-}
-
-type RawSlotItem = { api_slotitem_id: number }
-
-type RawFleetShip = {
-  api_ship_id: number
-  api_maxhp: number
-  api_nowhp: number
-  poi_slot: Array<RawSlotItem | null>
-  poi_slot_ex?: Array<RawSlotItem | null>
-
-  // poi-only ship stats (present in fixtures)
-  api_kyouka: number[]
-  api_karyoku: number[]
-  api_raisou: number[]
-  api_taiku: number[]
-  api_soukou: number[]
 }
 
 type Obj = Record<string, unknown>
@@ -243,6 +226,12 @@ type ShipArrayish = ShipArray | null | undefined
 type ShipDb = NonNullable<Window["$ships"]>
 type SlotItemDb = NonNullable<Window["$slotitems"]>
 
+type RawEnemyShip = {
+  api_ship_id: number
+  api_lv: number | undefined
+  poi_slot: (SlotItemDb[number] | undefined)[]
+}
+
 function getShipDb(): ShipDb {
   return window.$ships ?? {}
 }
@@ -257,7 +246,7 @@ export interface StageOptions {
   attacks?: Attack[]
   aerial?: AerialInfo | null
   engagement?: EngagementInfo | null
-  kouku?: unknown
+  kouku?: ApiKouku | ApiInjectionKouku | ApiAirBaseAttack | AerialStage3Carrier | null
 }
 
 export class Stage {
@@ -266,7 +255,7 @@ export class Stage {
   attacks: Attack[] | undefined
   aerial: AerialInfo | null | undefined
   engagement: EngagementInfo | null | undefined
-  kouku: unknown
+  kouku: ApiKouku | ApiInjectionKouku | ApiAirBaseAttack | AerialStage3Carrier | null | undefined
 
   constructor(opts: StageOptions) {
     this.type    = opts.type      // StageType
@@ -417,7 +406,7 @@ export interface ShipOptions {
   useItem?: number | null
   baseParam?: Param4
   finalParam?: Param4
-  raw?: unknown
+  raw?: RawFleetShip | RawEnemyShip | null
 }
 
 export class Ship {
@@ -1717,7 +1706,7 @@ class Simulator2 {
       let id    = api_ship_ke[i]
       let slots = (api_eSlot && api_eSlot[i]) || []
       let ship: Ship | null = null
-      let raw: unknown
+      let raw: RawEnemyShip | undefined
       let baseParam: Param4 | undefined
       let finalParam: Param4 | undefined
       if (typeof id === "number" && id > 0) {

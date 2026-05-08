@@ -1,3 +1,16 @@
+import type { APISlotItem } from "kcsapi/api_get_member/require_info/response"
+import type { APIGetMemberShip2Response } from "kcsapi/api_get_member/ship2/response"
+import type { APIAirBase } from "kcsapi/api_get_member/mapinfo/response"
+
+export type RawSlotItem = APISlotItem
+
+export type RawFleetShip = APIGetMemberShip2Response & {
+  poi_slot: Array<RawSlotItem | null>
+  poi_slot_ex?: Array<RawSlotItem | null>
+}
+
+export type RawLBAC = APIAirBase
+
 export const BattleType = {
   Normal: "Normal",
   Boss: "Boss",
@@ -13,24 +26,24 @@ export type BattleMap = [number, number, number] | number[]
 
 export interface FleetOptions {
   type?: number
-  main?: Array<unknown | null>
-  escort?: Array<unknown | null>
-  support?: Array<unknown | null>
-  LBAC?: unknown
+  main?: Array<RawFleetShip | null>
+  escort?: Array<RawFleetShip | null>
+  support?: Array<RawFleetShip | null>
+  LBAC?: RawLBAC[]
 }
 
 export class Fleet {
   type: number | undefined
-  main: Array<unknown | null>
-  escort: Array<unknown | null>
-  support: Array<unknown | null>
-  LBAC: unknown
+  main: Array<RawFleetShip | null>
+  escort: Array<RawFleetShip | null>
+  support: Array<RawFleetShip | null>
+  LBAC?: RawLBAC[]
 
   constructor(opts: FleetOptions = {}) {
     this.type = opts.type // api_port/port.api_combined_flag
     this.main = opts.main ?? [] // api_get_member/deck[].api_ship (Extended)
-    this.escort = opts.escort ?? [] // ^^ 
-    this.support = opts.support ?? [] // ^^ 
+    this.escort = opts.escort ?? [] // ^^
+    this.support = opts.support ?? [] // ^^
     this.LBAC = opts.LBAC // api_get_member/base_air_corps (Extended)
   }
 }
@@ -39,7 +52,7 @@ export interface BattleOptions {
   version?: string
   type?: BattleType
   map?: BattleMap
-  desc?: unknown
+  desc?: string | null
   time?: number
   fleet?: Fleet
   packet?: unknown[]
@@ -49,7 +62,7 @@ export class Battle {
   version: string
   type: BattleType | undefined
   map: BattleMap | undefined
-  desc: unknown
+  desc: string | null | undefined
   time: number | undefined
   fleet: Fleet | undefined
   packet: unknown[] | undefined
