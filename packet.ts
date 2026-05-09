@@ -4,16 +4,16 @@ import type { APIAirBase, APIPlaneInfo } from "kcsapi/api_get_member/mapinfo/res
 
 export type RawSlotItem = APISlotItem
 
-export type RawFleetShip = APIGetMemberShip2Response & {
-  poi_slot: Array<RawSlotItem | null>
+export interface RawFleetShip extends APIGetMemberShip2Response {
+  poi_slot?: Array<RawSlotItem | null>
   poi_slot_ex?: Array<RawSlotItem | null>
 }
 
-export type RawPlane = APIPlaneInfo & {
-  poi_slot: RawSlotItem | null
+export interface RawPlane extends APIPlaneInfo {
+  poi_slot?: RawSlotItem | null
 }
 
-export type RawLBAC = Omit<APIAirBase, "api_plane_info"> & {
+export interface RawLBAC extends Omit<APIAirBase, "api_plane_info"> {
   api_plane_info: Array<RawPlane | null>
 }
 

@@ -1650,7 +1650,7 @@ class Simulator2 {
     const fleet: Array<Ship | null> = []
     for (let [i, rawShip] of rawFleet.entries()) {
       if (rawShip != null && isRawFleetShip(rawShip)) {
-        const slots = rawShip.poi_slot.concat(rawShip.poi_slot_ex ?? [])
+        const slots = [...(rawShip.poi_slot ?? []), ...(rawShip.poi_slot_ex ?? [])]
         let baseParam: Param4 | undefined
         let finalParam: Param4 | undefined
         if (this.usePoiAPI) {
