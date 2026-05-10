@@ -6,11 +6,11 @@ export type RawSlotItem = APISlotItem
 
 export interface RawFleetShip extends APIGetMemberShip2Response {
   poi_slot?: Array<RawSlotItem | null>
-  poi_slot_ex?: Array<RawSlotItem | null>
+  poi_slot_ex?: RawSlotItem | null
 }
 
 export interface RawPlane extends APIPlaneInfo {
-  poi_slot?: RawSlotItem | null
+  poi_slot?: Array<RawSlotItem | null>
 }
 
 export interface RawLBAC extends Omit<APIAirBase, "api_plane_info"> {
