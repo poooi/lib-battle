@@ -10,7 +10,7 @@ export interface RawFleetShip extends APIGetMemberShip2Response {
 }
 
 export interface RawPlane extends APIPlaneInfo {
-  poi_slot?: Array<RawSlotItem | null>
+  poi_slot?: RawSlotItem | null
 }
 
 export interface RawLBAC extends Omit<APIAirBase, "api_plane_info"> {
