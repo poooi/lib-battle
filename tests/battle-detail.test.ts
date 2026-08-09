@@ -68,6 +68,8 @@ function assertHpInvariant(sim: unknown) {
     for (const ship of fleet) {
       if (ship == null) continue
       const r = asRec(ship)
+      // The game may hide an enemy's HP ('N/A'); there is no number to check.
+      if (r?.hpUnknown === true) continue
       const maxHP = asNumber(r?.maxHP) ?? 0
       const nowHP = asNumber(r?.nowHP) ?? 0
       expect(Number.isFinite(maxHP)).toBe(true)
@@ -297,6 +299,18 @@ describe("battle-detail fixtures", () => {
     it.each(fixtures)("%s", (filePath) => {
       try {
         testFixture(filePath, { expectLandBase: true })
+      } catch (e) {
+        throw new Error(`fixture failed: ${filePath}\n${String(e)}`)
+      }
+    })
+  })
+
+  describe("features/hidden_enemy_hp", () => {
+    const fixtures = findBattleDetailFixturesInDir("features/hidden_enemy_hp")
+    expect(fixtures.length).toBeGreaterThan(0)
+    it.each(fixtures)("%s", (filePath) => {
+      try {
+        testFixture(filePath, { engagementIfPresent: true })
       } catch (e) {
         throw new Error(`fixture failed: ${filePath}\n${String(e)}`)
       }

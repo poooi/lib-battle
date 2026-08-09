@@ -96,10 +96,12 @@ type BattlePacket = {
   api_eParam_combined?: number[][]
 
   // newer captures
-  api_e_maxhps?: number[]
-  api_e_nowhps?: number[]
-  api_e_maxhps_combined?: number[]
-  api_e_nowhps_combined?: number[]
+  // HP of an enemy may be hidden by the game, sent as a non-number placeholder
+  // (currently 'N/A').
+  api_e_maxhps?: Array<number | string>
+  api_e_nowhps?: Array<number | string>
+  api_e_maxhps_combined?: Array<number | string>
+  api_e_nowhps_combined?: Array<number | string>
 
   // older captures
   api_maxhps?: number[]
@@ -400,6 +402,7 @@ export interface ShipOptions {
   pos: number
   maxHP: number
   nowHP: number
+  hpUnknown?: boolean
   lostHP?: number
   damage?: number
   items?: ReadonlyArray<number | null> | null
@@ -416,6 +419,9 @@ export class Ship {
   maxHP: number
   nowHP: number
   initHP: number
+  // True if the game hides this ship's HP (sent as a non-number, e.g. 'N/A').
+  // Such a ship is excluded from the battle rank calculation.
+  hpUnknown: boolean
   lostHP: number
   damage: number
   items: ReadonlyArray<number | null> | null | undefined
@@ -432,6 +438,7 @@ export class Ship {
     this.maxHP      = opts.maxHP
     this.nowHP      = opts.nowHP
     this.initHP     = opts.nowHP
+    this.hpUnknown  = opts.hpUnknown || false
     this.lostHP     = opts.lostHP || 0
     this.damage     = opts.damage || 0  // Damage from this to others
     this.items      = opts.items
@@ -1474,6 +1481,9 @@ function simulateBattleRank(
     let flagshipSunk = false, flagshipCritical  = false
     for (const ship of fleet) {
       if (ship == null) continue
+      // Ships whose HP is hidden by the game ('N/A') take no part in the
+      // rank calculation, so sinking every other enemy still counts as S.
+      if (ship.hpUnknown) continue
       let {initHP, nowHP, maxHP} = ship
       if (nowHP < 0) nowHP = 0
       shipNum += 1
@@ -1488,7 +1498,7 @@ function simulateBattleRank(
     return {
       num: shipNum,
       sunk: sunkNum,
-      rate: Math.floor(lostHP / totalHP * 100),
+      rate: totalHP > 0 ? Math.floor(lostHP / totalHP * 100) : 0,
       lostHP, flagshipSunk, flagshipCritical,
     }
   }
@@ -1496,7 +1506,7 @@ function simulateBattleRank(
   const enemy = calStatus([...(enemyFleet ?? []), ...(enemyEscort ?? [])])
 
   if (ours.sunk === 0) {
-    if (enemy.sunk === enemy.num) {
+    if (enemy.num > 0 && enemy.sunk === enemy.num) {
       if (ours.lostHP <= 0)
         return Rank.SS
       else
@@ -1693,8 +1703,8 @@ class Simulator2 {
     intl=0,
     api_ship_ke: number[] | null | undefined,
     api_eSlot: number[][] | null | undefined,
-    api_e_maxhps: number[] | null | undefined,
-    api_e_nowhps: number[] | null | undefined,
+    api_e_maxhps: Array<number | string> | null | undefined,
+    api_e_nowhps: Array<number | string> | null | undefined,
     api_ship_lv: number[] | null | undefined,
     api_param: number[][] = [],
     owner: ShipOwner = ShipOwner.Enemy,
@@ -1730,12 +1740,19 @@ class Simulator2 {
             ]
           }, baseParam)
         }
+        // The game may hide an enemy's HP, sending a placeholder ('N/A') in
+        // place of the number. Keep the raw value so consumers can still
+        // display it, and flag the ship so it can be ignored where HP matters.
+        const rawMaxHP = api_e_maxhps[i]
+        const rawNowHP = api_e_nowhps[i]
+        const hpUnknown = typeof rawMaxHP !== "number" || typeof rawNowHP !== "number"
         ship = new Ship({
           id        : id,
           owner     : owner,
           pos       : intl + i,
-          maxHP     : api_e_maxhps[i],
-          nowHP     : api_e_nowhps[i],
+          maxHP     : rawMaxHP as number,
+          nowHP     : rawNowHP as number,
+          hpUnknown : hpUnknown,
           items     : [],  // We dont care
           baseParam : baseParam,
           finalParam: finalParam,
